@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import UserManagement from './UserManagement';
+import CourseManagement from './CourseManagement';
 import {
     BookOpen,
     LayoutDashboard,
@@ -125,7 +126,7 @@ const AdminLayout = ({ user, onLogout }) => {
                 <main className="flex-1 p-8">
                     {activeTab === 'dashboard' && <AdminDashboard />}
                     {activeTab === 'users' && <UserManagement />}
-                    {activeTab === 'courses' && <PlaceholderView title="Quản lý khóa học" subtitle="Quản lý Từ vựng & Ngữ pháp cho khóa Sơ cấp 1 và Sơ cấp 2" />}
+                    {activeTab === 'courses' && <CourseManagement />}
                     {activeTab === 'exams' && <PlaceholderView title="Quản lý đề thi TOPIK" subtitle="Nhập đề thi Topik I, Topik II, upload file nghe & cài đặt tiêu chí chấm" />}
                 </main>
             </div>
