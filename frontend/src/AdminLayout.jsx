@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import UserManagement from './UserManagement';
 import {
     BookOpen,
     LayoutDashboard,
@@ -52,8 +53,8 @@ const AdminLayout = ({ user, onLogout }) => {
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id)}
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all text-left ${isActive
-                                            ? 'bg-gradient-to-r from-[#F48FB1] to-[#F06292] text-white shadow-[0_4px_12px_rgba(240,98,146,0.3)]'
-                                            : 'text-[#373A4D] hover:bg-pink-50 hover:text-[#F06292]'
+                                        ? 'bg-gradient-to-r from-[#F48FB1] to-[#F06292] text-white shadow-[0_4px_12px_rgba(240,98,146,0.3)]'
+                                        : 'text-[#373A4D] hover:bg-pink-50 hover:text-[#F06292]'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -123,7 +124,7 @@ const AdminLayout = ({ user, onLogout }) => {
                 {/* Nội dung thay đổi theo Tab */}
                 <main className="flex-1 p-8">
                     {activeTab === 'dashboard' && <AdminDashboard />}
-                    {activeTab === 'users' && <PlaceholderView title="Quản lý người dùng" subtitle="Danh sách người dùng, mở khóa tài khoản và phân quyền" />}
+                    {activeTab === 'users' && <UserManagement />}
                     {activeTab === 'courses' && <PlaceholderView title="Quản lý khóa học" subtitle="Quản lý Từ vựng & Ngữ pháp cho khóa Sơ cấp 1 và Sơ cấp 2" />}
                     {activeTab === 'exams' && <PlaceholderView title="Quản lý đề thi TOPIK" subtitle="Nhập đề thi Topik I, Topik II, upload file nghe & cài đặt tiêu chí chấm" />}
                 </main>
