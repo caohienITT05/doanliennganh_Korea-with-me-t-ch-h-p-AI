@@ -3,9 +3,7 @@ package com.koreanwithme.backend.service;
 import com.koreanwithme.backend.dto.RegisterRequest;
 import com.koreanwithme.backend.entity.User;
 import com.koreanwithme.backend.repository.UserRepository;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import com.koreanwithme.backend.security.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -13,9 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.Key;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,9 +29,12 @@ public class AuthService {
     @Autowired
     private JavaMailSender mailSender;
 
-    private static final Key SECRET_KEY = Keys.hmacShaKeyFor("korean_with_me_super_secret_jwt_key_2026_phenikaa".getBytes());
+    @Autowired
+    private JwtUtils jwtUtils; // Dùng chung JwtUtils với JwtAuthFilter
 
     // --- 1. ĐĂNG NHẬP ---
+
+
     public Map<String, Object> login(String email, String password) {
         User user = userRepository.findByEmail(email.trim().toLowerCase())
                 .orElseThrow(() -> new RuntimeException("Email hoặc mật khẩu không chính xác!"));
@@ -48,13 +47,14 @@ public class AuthService {
             throw new RuntimeException("Tài khoản chưa được kích hoạt! Vui lòng xác thực mã OTP.");
         }
 
-        String token = generateToken(user.getEmail());
+        // TẠO TOKEN BẰNG JWTUTILS
+        String token = jwtUtils.generateJwtToken(user.getEmail());
 
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);
         result.put("email", user.getEmail());
         result.put("fullName", user.getFullName());
-        result.put("role", user.getRole().name()); // "ADMIN" hoặc "USER"
+        result.put("role", user.getRole() != null ? user.getRole().name() : "USER");
         result.put("message", "Đăng nhập thành công!");
 
         return result;
@@ -141,7 +141,7 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    // --- TIỆN ÍCH GỬI MAIL & IN RA CONSOLE ---
+    // --- GỬI MAIL VÀ IN RA CONSOLE ---
     private void sendOtpEmail(String toEmail, String otp) {
         System.out.println("=================================================");
         System.out.println(">>> MÃ OTP XÁC THỰC CHO [" + toEmail + "] LÀ: " + otp);
@@ -158,14 +158,5 @@ public class AuthService {
             System.err.println("Lưu ý: Không thể gửi mail qua mạng (" + e.getMessage() + ")");
             System.err.println("-> Hãy lấy mã OTP in ở trên console để nhập vào giao diện.");
         }
-    }
-
-    private String generateToken(String email) {
-        return Jwts.builder()
-                .setSubject(email)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 86400000))
-                .signWith(SECRET_KEY, SignatureAlgorithm.HS256)
-                .compact();
     }
 }
