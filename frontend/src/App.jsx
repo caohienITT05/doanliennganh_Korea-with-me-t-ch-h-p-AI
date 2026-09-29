@@ -8,6 +8,7 @@ import ResetPassword from './ResetPassword';
 import AdminLayout from './AdminLayout';
 import StudyLesson from './StudyLesson';
 import TopikExamRoom from './TopikExamRoom';
+import ChatbotWidget from './ChatbotWidget';
 
 function App() {
   // 'user-dashboard' | 'admin' | 'login' | 'register' | 'study' | 'topik-exam'
@@ -163,6 +164,17 @@ function App() {
           onBack={() => setCurrentPage('user-dashboard')}
         />
       )}
+      {/* 9. PHÒNG HỌC BÀI GIẢNG */}
+      {currentPage === 'study' && (
+        <StudyLesson
+          lesson={selectedLessonForStudy}
+          onBack={() => setCurrentPage('user-dashboard')}
+        />
+      )}
+
+      {/* CHATBOT AI HỖ TRỢ TRA TỪ, NGỮ PHÁP & LỘ TRÌNH (LUÔN HIỆN NỔI GÓC PHẢI) */}
+      <ChatbotWidget />
+
     </div>
   );
 }
