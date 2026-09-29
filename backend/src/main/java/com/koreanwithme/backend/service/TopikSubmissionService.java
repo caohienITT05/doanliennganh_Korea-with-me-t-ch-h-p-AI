@@ -232,4 +232,95 @@ public class TopikSubmissionService {
                 .detailedResults(detailedList)
                 .build();
     }
+    // 3. Admin lấy toàn bộ danh sách kết quả bài thi của học viên
+    @Transactional(readOnly = true)
+    public List<AdminSubmissionDto> getAllSubmissionsForAdmin() {
+        List<TopikSubmission> submissions = submissionRepository.findAllByOrderByIdDesc();
+        List<AdminSubmissionDto> list = new ArrayList<>();
+
+        for (TopikSubmission s : submissions) {
+            User user = s.getUser();
+            TopikExam exam = s.getExam();
+
+            list.add(AdminSubmissionDto.builder()
+                    .submissionId(s.getId())
+                    .userId(user != null ? user.getId() : null)
+                    .userFullName(user != null ? user.getFullName() : "Người dùng ẩn")
+                    .userEmail(user != null ? user.getEmail() : "N/A")
+                    .examId(exam != null ? exam.getId() : null)
+                    .examTitle(exam != null ? exam.getTitle() : "Đề thi đã xóa")
+                    .examLevel(exam != null ? exam.getLevel() : null)
+                    .listeningScore(s.getListeningScore())
+                    .readingScore(s.getReadingScore())
+                    .writingScore(s.getWritingScore())
+                    .totalScore(s.getTotalScore())
+                    .passedLevel(s.getPassedLevel())
+                    .submittedAt(s.getCreatedAt() != null ? s.getCreatedAt() : LocalDateTime.now())
+                    .build());
+        }
+        return list;
+    }
+
+    // 4. Admin xem chi tiết 1 bài nộp của học viên (kèm đáp án, bài luận và nhận xét AI)
+    @Transactional(readOnly = true)
+    public AdminSubmissionDetailDto getSubmissionDetailForAdmin(Integer submissionId) {
+        TopikSubmission submission = submissionRepository.findWithUserAndExamById(submissionId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kết quả bài thi ID: " + submissionId));
+
+        TopikExam exam = submission.getExam();
+        User user = submission.getUser();
+
+        List<TopikQuestion> questions = exam != null
+                ? questionRepository.findByExamIdOrderByQuestionNumAsc(exam.getId())
+                : Collections.emptyList();
+
+        Map<String, String> answersMap = new HashMap<>();
+        try {
+            if (submission.getSubmittedAnswers() != null) {
+                answersMap = objectMapper.readValue(submission.getSubmittedAnswers(), new TypeReference<Map<String, String>>() {});
+            }
+        } catch (Exception ignored) {}
+
+        List<QuestionResultDto> detailedList = new ArrayList<>();
+        for (TopikQuestion q : questions) {
+            String studentAns = answersMap.get(String.valueOf(q.getId()));
+            boolean isCorrect = q.getCorrectOption() != null && q.getCorrectOption().trim().equalsIgnoreCase(studentAns != null ? studentAns.trim() : "");
+
+            detailedList.add(QuestionResultDto.builder()
+                    .questionId(q.getId())
+                    .questionNum(q.getQuestionNum())
+                    .section(q.getSection())
+                    .questionType(q.getQuestionType())
+                    .passage(q.getPassage())
+                    .questionText(q.getQuestionText())
+                    .option1(q.getOption1())
+                    .option2(q.getOption2())
+                    .option3(q.getOption3())
+                    .option4(q.getOption4())
+                    .studentAnswer(studentAns)
+                    .correctAnswer(q.getCorrectOption())
+                    .isCorrect(isCorrect)
+                    .score(isCorrect ? q.getScore() : BigDecimal.ZERO)
+                    .explanation(q.getExplanation())
+                    .build());
+        }
+
+        return AdminSubmissionDetailDto.builder()
+                .submissionId(submission.getId())
+                .userId(user != null ? user.getId() : null)
+                .userFullName(user != null ? user.getFullName() : "Không rõ")
+                .userEmail(user != null ? user.getEmail() : "Không rõ")
+                .examId(exam != null ? exam.getId() : null)
+                .examTitle(exam != null ? exam.getTitle() : "Đề thi đã bị xóa")
+                .examLevel(exam != null ? exam.getLevel() : null)
+                .listeningScore(submission.getListeningScore())
+                .readingScore(submission.getReadingScore())
+                .writingScore(submission.getWritingScore())
+                .totalScore(submission.getTotalScore())
+                .passedLevel(submission.getPassedLevel())
+                .writingFeedback(submission.getWritingFeedback())
+                .submittedAt(submission.getCreatedAt() != null ? submission.getCreatedAt() : LocalDateTime.now())
+                .questions(detailedList)
+                .build();
+    }
 }

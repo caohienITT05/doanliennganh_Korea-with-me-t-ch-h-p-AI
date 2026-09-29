@@ -163,4 +163,49 @@ public class TopikDtos {
         private String passedLevel;
         private LocalDateTime submittedAt;
     }
+    // DTO cho Admin xem danh sách kết quả bài thi của học viên
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class AdminSubmissionDto {
+        private Integer submissionId;
+        private Integer userId;
+        private String userFullName;
+        private String userEmail;
+        private Integer examId;
+        private String examTitle;
+        private TopikExam.Level examLevel;
+        private BigDecimal listeningScore;
+        private BigDecimal readingScore;
+        private BigDecimal writingScore;
+        private BigDecimal totalScore;
+        private String passedLevel;
+        private LocalDateTime submittedAt;
+    }
+
+    // DTO cho Admin xem chi tiết 1 bài thi của học viên
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class AdminSubmissionDetailDto {
+        private Integer submissionId;
+        private Integer userId;
+        private String userFullName;
+        private String userEmail;
+        private Integer examId;
+        private String examTitle;
+        private TopikExam.Level examLevel;
+        private BigDecimal listeningScore;
+        private BigDecimal readingScore;
+        private BigDecimal writingScore;
+        private BigDecimal totalScore;
+        private String passedLevel;
+        private String writingFeedback;
+        private LocalDateTime submittedAt;
+        private List<QuestionResultDto> questions;
+    }
 }

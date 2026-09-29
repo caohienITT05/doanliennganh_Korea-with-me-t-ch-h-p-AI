@@ -247,10 +247,10 @@ public class GeminiService {
                     + "Đáp án đúng: " + q.getCorrectOption() + "\n"
                     + "Lựa chọn của học viên: " + (studentAnswer != null ? studentAnswer : "Không chọn") + "\n\n"
                     + "YÊU CẦU TRÌNH BÀY (Dùng định dạng rõ ràng, ngắn gọn, gạch đầu dòng):\n"
-                    + "1. 📖 Dịch nghĩa: Dịch câu hỏi và 4 lựa chọn sang tiếng Việt.\n"
-                    + "2. 💡 Tại sao đáp án đúng: Giải thích ngữ pháp/từ vựng cốt lõi chứng minh đáp án đúng.\n"
-                    + "3. ⚠️ Phân tích bẫy sai: Nếu học viên chọn sai (hoặc chưa chọn), chỉ rõ tại sao phương án của họ không phù hợp.\n"
-                    + "4. 🔑 Từ vựng & Ngữ pháp cần nhớ: Liệt kê 2-3 từ vựng/cấu trúc ngữ pháp đắt giá nhất trong câu.";
+                    + "1.Dịch nghĩa: Dịch câu hỏi và 4 lựa chọn sang tiếng Việt.\n"
+                    + "2.Tại sao đáp án đúng: Giải thích ngữ pháp/từ vựng cốt lõi chứng minh đáp án đúng.\n"
+                    + "3.Phân tích bẫy sai: Nếu học viên chọn sai (hoặc chưa chọn), chỉ rõ tại sao phương án của họ không phù hợp.\n"
+                    + "4. ừ vựng & Ngữ pháp cần nhớ: Liệt kê 2-3 từ vựng/cấu trúc ngữ pháp đắt giá nhất trong câu.";
 
             Map<String, Object> part = Collections.singletonMap("text", prompt);
             Map<String, Object> content = Collections.singletonMap("parts", Collections.singletonList(part));
@@ -279,5 +279,68 @@ public class GeminiService {
             return "Trợ lý AI đang bận xử lý, vui lòng nhấn lại sau giây lát! (Chi tiết: " + e.getMessage() + ")";
         }
         return "Không có dữ liệu phản hồi từ AI.";
+    }
+    /**
+     * Trợ lý AI Tiếng Hàn chuyên sâu: Tra từ, giải thích ngữ pháp và tư vấn lộ trình học
+     */
+    public String chatWithAssistant(String userMessage, List<com.koreanwithme.backend.dto.ChatDtos.ChatMessage> history) {
+        try {
+            String systemInstruction = "Bạn là Trợ lý AI Tiếng Hàn (Korean with Me AI Coach) - một giáo viên tiếng Hàn bản ngữ thân thiện, nhiệt tình và chuyên nghiệp.\n"
+                    + "Nhiệm vụ trọng tâm của bạn gồm 3 việc:\n"
+                    + "1. TRA TỪ ĐIỂN: Cung cấp nghĩa tiếng Việt chính xác, từ loại, phiên âm/phát âm, ví dụ câu thực tế kèm dịch nghĩa, từ đồng nghĩa hoặc trái nghĩa nếu có.\n"
+                    + "2. TRA NGỮ PHÁP: Giải thích quy tắc kết hợp (với V/A có/không có batchim), ý nghĩa ngữ cảnh, ví dụ song ngữ Hàn - Việt, mẹo tránh nhầm lẫn hoặc so sánh chi tiết nếu người dùng hỏi phân biệt.\n"
+                    + "3. XÂY DỰNG LỘ TRÌNH: Tư vấn lộ trình chi tiết theo từng giai đoạn (Bảng chữ cái Hangeul -> Sơ cấp 1 -> Sơ cấp 2 -> Ôn thi TOPIK), gợi ý phân bổ thời gian học mỗi ngày và tài liệu phù hợp.\n\n"
+                    + "QUY TẮC PHẢN HỒI:\n"
+                    + "- Trình bày bằng tiếng Việt rõ ràng, dùng bullet point, in đậm từ khóa quan trọng.\n"
+                    + "- Với câu tiếng Hàn luôn có bản dịch tiếng Việt đi kèm.\n"
+                    + "- Giữ thái độ khích lệ, thân thiện.";
+
+            List<Map<String, Object>> contents = new ArrayList<>();
+
+            // 1. Thêm system prompt như lượt chat mở đầu
+            Map<String, Object> systemPart = Collections.singletonMap("text", systemInstruction);
+            contents.add(Map.of("role", "user", "parts", Collections.singletonList(systemPart)));
+            contents.add(Map.of("role", "model", "parts", Collections.singletonList(Collections.singletonMap("text", "Xin chào! Mình là Trợ lý AI Tiếng Hàn. Mình có thể giúp gì cho bạn hôm nay: tra từ điển, giải thích ngữ pháp hay cùng bạn lập lộ trình học tập?"))));
+
+            // 2. Thêm lịch sử hội thoại gần nhất (nếu có)
+            if (history != null) {
+                for (com.koreanwithme.backend.dto.ChatDtos.ChatMessage msg : history) {
+                    contents.add(Map.of(
+                            "role", "model".equalsIgnoreCase(msg.getRole()) ? "model" : "user",
+                            "parts", Collections.singletonList(Collections.singletonMap("text", msg.getContent()))
+                    ));
+                }
+            }
+
+            // 3. Lượt hỏi hiện tại của người dùng
+            contents.add(Map.of(
+                    "role", "user",
+                    "parts", Collections.singletonList(Collections.singletonMap("text", userMessage))
+            ));
+
+            Map<String, Object> generationConfig = new HashMap<>();
+            generationConfig.put("temperature", 0.5);
+
+            Map<String, Object> requestPayload = new HashMap<>();
+            requestPayload.put("contents", contents);
+            requestPayload.put("generationConfig", generationConfig);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-goog-api-key", geminiApiKey.trim());
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestPayload, headers);
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
+
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                return root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi AI Chat: " + e.getMessage());
+            return "Xin lỗi, trợ lý AI đang bận xử lý hoặc kết nối mạng gián đoạn. Bạn thử gửi lại câu hỏi nhé!";
+        }
+        return "Xin lỗi, hiện tại mình chưa thể đưa ra câu trả lời.";
     }
 }

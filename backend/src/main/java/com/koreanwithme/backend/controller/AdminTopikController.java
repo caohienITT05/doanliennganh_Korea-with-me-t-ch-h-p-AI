@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpHeaders;
+import com.koreanwithme.backend.service.TopikSubmissionService;
 import org.springframework.http.MediaType;
 import java.util.*;
 
@@ -121,5 +122,19 @@ public class AdminTopikController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(excelBytes);
+    }
+    @Autowired
+    private TopikSubmissionService submissionService;
+
+    // 12. Admin lấy danh sách toàn bộ bài thi đã nộp của các học viên
+    @GetMapping("/submissions")
+    public ResponseEntity<List<AdminSubmissionDto>> getAllSubmissions() {
+        return ResponseEntity.ok(submissionService.getAllSubmissionsForAdmin());
+    }
+
+    // 13. Admin xem chi tiết 1 bài nộp của học viên (gồm câu hỏi, đáp án và nhận xét AI)
+    @GetMapping("/submissions/{id}")
+    public ResponseEntity<AdminSubmissionDetailDto> getSubmissionDetail(@PathVariable Integer id) {
+        return ResponseEntity.ok(submissionService.getSubmissionDetailForAdmin(id));
     }
 }
