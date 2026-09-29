@@ -1,5 +1,6 @@
 package com.koreanwithme.backend.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.koreanwithme.backend.dto.TopikDtos.*;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime; // ĐÃ BỔ SUNG IMPORT NÀY
 import java.util.*;
 
 @Service
@@ -147,5 +149,87 @@ public class TopikSubmissionService {
             if (s >= 120.0) return "TOPIK Level 3";
             return "Chưa đạt (Không đỗ cấp nào)";
         }
+    }
+
+    // 1. Lấy danh sách lịch sử làm bài của học viên
+    @Transactional(readOnly = true)
+    public List<SubmissionHistoryDto> getMyExamHistory(Integer userId) {
+        List<TopikSubmission> submissions = submissionRepository.findByUserIdOrderByIdDesc(userId);
+        List<SubmissionHistoryDto> list = new ArrayList<>();
+
+        for (TopikSubmission s : submissions) {
+            list.add(SubmissionHistoryDto.builder()
+                    .submissionId(s.getId())
+                    .examId(s.getExam() != null ? s.getExam().getId() : null)
+                    .examTitle(s.getExam() != null ? s.getExam().getTitle() : "Đề thi đã bị xóa")
+                    .examLevel(s.getExam() != null ? s.getExam().getLevel() : null)
+                    .listeningScore(s.getListeningScore())
+                    .readingScore(s.getReadingScore())
+                    .writingScore(s.getWritingScore())
+                    .totalScore(s.getTotalScore())
+                    .passedLevel(s.getPassedLevel())
+                    .submittedAt(s.getCreatedAt() != null ? s.getCreatedAt() : LocalDateTime.now())
+                    .build());
+        }
+        return list;
+    }
+
+    // 2. Tải lại chi tiết một bài nộp cũ để học viên xem lại đề và gọi AI giải thích
+    @Transactional(readOnly = true)
+    public SubmissionResponse getSubmissionDetail(Integer userId, Integer submissionId) {
+        TopikSubmission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kết quả bài thi này!"));
+
+        if (!submission.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền xem bài làm của người khác!");
+        }
+
+        TopikExam exam = submission.getExam();
+        List<TopikQuestion> questions = exam != null
+                ? questionRepository.findByExamIdOrderByQuestionNumAsc(exam.getId())
+                : Collections.emptyList();
+
+        // Đọc lại đáp án học viên từng chọn từ JSON
+        Map<String, String> answersMap = new HashMap<>();
+        try {
+            if (submission.getSubmittedAnswers() != null) {
+                answersMap = objectMapper.readValue(submission.getSubmittedAnswers(), new TypeReference<Map<String, String>>() {});
+            }
+        } catch (Exception ignored) {}
+
+        List<QuestionResultDto> detailedList = new ArrayList<>();
+        for (TopikQuestion q : questions) {
+            String studentAns = answersMap.get(String.valueOf(q.getId()));
+            boolean isCorrect = q.getCorrectOption() != null && q.getCorrectOption().trim().equalsIgnoreCase(studentAns != null ? studentAns.trim() : "");
+
+            detailedList.add(QuestionResultDto.builder()
+                    .questionId(q.getId())
+                    .questionNum(q.getQuestionNum())
+                    .section(q.getSection())
+                    .questionType(q.getQuestionType())
+                    .passage(q.getPassage())
+                    .questionText(q.getQuestionText())
+                    .option1(q.getOption1())
+                    .option2(q.getOption2())
+                    .option3(q.getOption3())
+                    .option4(q.getOption4())
+                    .studentAnswer(studentAns)
+                    .correctAnswer(q.getCorrectOption())
+                    .isCorrect(isCorrect)
+                    .score(isCorrect ? q.getScore() : BigDecimal.ZERO)
+                    .explanation(q.getExplanation())
+                    .build());
+        }
+
+        return SubmissionResponse.builder()
+                .submissionId(submission.getId())
+                .listeningScore(submission.getListeningScore())
+                .readingScore(submission.getReadingScore())
+                .writingScore(submission.getWritingScore())
+                .totalScore(submission.getTotalScore())
+                .passedLevel(submission.getPassedLevel())
+                .writingFeedback(submission.getWritingFeedback())
+                .detailedResults(detailedList)
+                .build();
     }
 }

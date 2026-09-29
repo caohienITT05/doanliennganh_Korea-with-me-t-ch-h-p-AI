@@ -115,4 +115,39 @@ public class ClientTopikController {
         String aiExplanation = geminiService.explainSingleQuestion(question, request.getStudentAnswer());
         return ResponseEntity.ok(Collections.singletonMap("explanation", aiExplanation));
     }
+    // 5. Lấy danh sách lịch sử thi của học viên đang đăng nhập
+    @GetMapping("/my-history")
+    public ResponseEntity<?> getMyExamHistory(Authentication authentication) {
+        User user = resolveUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập!");
+        }
+        return ResponseEntity.ok(submissionService.getMyExamHistory(user.getId()));
+    }
+
+    // 6. Xem lại chi tiết 1 bài thi cũ kèm câu hỏi và lời phê AI
+    @GetMapping("/my-history/{submissionId}")
+    public ResponseEntity<?> getSubmissionDetail(
+            @PathVariable Integer submissionId,
+            Authentication authentication) {
+        User user = resolveUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập!");
+        }
+        return ResponseEntity.ok(submissionService.getSubmissionDetail(user.getId(), submissionId));
+    }
+
+    // Hàm phụ trợ nhận diện User an toàn
+    private User resolveUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equalsIgnoreCase(authentication.getName())) {
+            return null;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof User) return (User) principal;
+        if (principal instanceof UserDetails) {
+            return userRepository.findByEmail(((UserDetails) principal).getUsername()).orElse(null);
+        }
+        return userRepository.findByEmail(principal.toString().trim()).orElse(null);
+    }
 }

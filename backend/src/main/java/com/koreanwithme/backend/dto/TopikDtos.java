@@ -145,4 +145,22 @@ public class TopikDtos {
         private Integer questionId;
         private String studentAnswer;
     }
+    // DTO hiển thị danh sách lịch sử thi
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class SubmissionHistoryDto {
+        private Integer submissionId;
+        private Integer examId;
+        private String examTitle;
+        private TopikExam.Level examLevel;
+        private BigDecimal listeningScore;
+        private BigDecimal readingScore;
+        private BigDecimal writingScore;
+        private BigDecimal totalScore;
+        private String passedLevel;
+        private LocalDateTime submittedAt;
+    }
 }
