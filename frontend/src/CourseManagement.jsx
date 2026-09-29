@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     BookOpen, Plus, Trash2, Edit3, Volume2, ArrowLeft,
-    Layers, BookMarked, Save, X, FileSpreadsheet, Download, Upload, FileCode
+    Layers, BookMarked, Save, X, FileSpreadsheet, Download, Upload, FileCode, CheckCircle, EyeOff
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import axios from './axios';
@@ -15,25 +15,51 @@ const CourseManagement = () => {
 
     const [vocabularies, setVocabularies] = useState([]);
     const [grammars, setGrammars] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
 
-    // Single Modal State
-    const [showEditCourseModal, setShowEditCourseModal] = useState(false);
-    const [editingCourse, setEditingCourse] = useState(null);
-    const [showAddLessonModal, setShowAddLessonModal] = useState(false);
-    const [newLessonTitle, setNewLessonTitle] = useState('');
-    const [newLessonOrder, setNewLessonOrder] = useState(1);
-    const [showAddVocabModal, setShowAddVocabModal] = useState(false);
-    const [newWordKr, setNewWordKr] = useState('');
-    const [newMeaningVn, setNewMeaningVn] = useState('');
-    const [showAddGrammarModal, setShowAddGrammarModal] = useState(false);
-    const [newStructure, setNewStructure] = useState('');
-    const [newUsageDesc, setNewUsageDesc] = useState('');
-    const [newExampleKr, setNewExampleKr] = useState('');
-    const [newExampleVn, setNewExampleVn] = useState('');
+    // 1. Course Modal State
+    const [showCourseModal, setShowCourseModal] = useState(false);
+    const [isEditingCourse, setIsEditingCourse] = useState(false);
+    const [courseFormData, setCourseFormData] = useState({
+        id: null,
+        name: '',
+        description: '',
+        thumbnailUrl: '',
+        price: 0,
+        isFree: true,
+        status: 'OPEN'
+    });
 
-    // Bulk Import State
+    // 2. Lesson Modal State
+    const [showLessonModal, setShowLessonModal] = useState(false);
+    const [isEditingLesson, setIsEditingLesson] = useState(false);
+    const [lessonFormData, setLessonFormData] = useState({
+        id: null,
+        title: '',
+        orderIndex: 1
+    });
+
+    // 3. Vocab Modal State (Thêm & Sửa)
+    const [showVocabModal, setShowVocabModal] = useState(false);
+    const [isEditingVocab, setIsEditingVocab] = useState(false);
+    const [vocabFormData, setVocabFormData] = useState({
+        id: null,
+        wordKr: '',
+        meaningVn: ''
+    });
+
+    // 4. Grammar Modal State (Thêm & Sửa)
+    const [showGrammarModal, setShowGrammarModal] = useState(false);
+    const [isEditingGrammar, setIsEditingGrammar] = useState(false);
+    const [grammarFormData, setGrammarFormData] = useState({
+        id: null,
+        structure: '',
+        usageDesc: '',
+        exampleKr: '',
+        exampleVn: ''
+    });
+
+    // 5. Bulk Import State
     const [showBatchVocabModal, setShowBatchVocabModal] = useState(false);
     const [batchVocabText, setBatchVocabText] = useState('');
     const [parsedVocabList, setParsedVocabList] = useState([]);
@@ -44,16 +70,13 @@ const CourseManagement = () => {
     const [parsedGrammarList, setParsedGrammarList] = useState([]);
     const grammarFileInputRef = useRef(null);
 
-    // ================= 1. FETCH DATA =================
+    // ================= FETCH DATA =================
     const fetchCourses = async () => {
-        setLoading(true);
         try {
             const res = await axios.get('/api/admin/courses');
             setCourses(res.data);
         } catch {
             setMessage({ text: 'Không thể tải danh sách khóa học!', type: 'error' });
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -62,14 +85,11 @@ const CourseManagement = () => {
     }, []);
 
     const fetchLessons = async (courseId) => {
-        setLoading(true);
         try {
             const res = await axios.get(`/api/admin/lessons?courseId=${courseId}`);
             setLessons(res.data);
         } catch {
             setMessage({ text: 'Không thể tải danh sách bài học!', type: 'error' });
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -80,7 +100,6 @@ const CourseManagement = () => {
     };
 
     const fetchLessonDetails = async (lessonId) => {
-        setLoading(true);
         try {
             const [vocabRes, grammarRes] = await Promise.all([
                 axios.get(`/api/admin/vocabularies?lessonId=${lessonId}`),
@@ -90,8 +109,6 @@ const CourseManagement = () => {
             setGrammars(grammarRes.data);
         } catch {
             setMessage({ text: 'Không thể tải nội dung bài học!', type: 'error' });
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -110,7 +127,215 @@ const CourseManagement = () => {
         }
     };
 
-    // ================= 2. IMPORT FILE (EXCEL / JSON) - TỪ VỰNG =================
+    // ================= QUẢN LÝ KHÓA HỌC =================
+    const handleOpenCreateCourse = () => {
+        setIsEditingCourse(false);
+        setCourseFormData({ id: null, name: '', description: '', thumbnailUrl: '', price: 0, isFree: true, status: 'OPEN' });
+        setShowCourseModal(true);
+    };
+
+    const handleOpenEditCourse = (course) => {
+        setIsEditingCourse(true);
+        setCourseFormData({
+            id: course.id,
+            name: course.name,
+            description: course.description || '',
+            thumbnailUrl: course.thumbnailUrl || '',
+            price: course.price || 0,
+            isFree: course.isFree ?? false,
+            status: course.status || 'OPEN'
+        });
+        setShowCourseModal(true);
+    };
+
+    const handleSaveCourse = async (e) => {
+        e.preventDefault();
+        try {
+            if (isEditingCourse) {
+                const res = await axios.put(`/api/admin/courses/${courseFormData.id}`, courseFormData);
+                setCourses(courses.map(c => c.id === res.data.id ? res.data : c));
+                if (selectedCourse?.id === res.data.id) setSelectedCourse(res.data);
+                setMessage({ text: 'Cập nhật khóa học thành công!', type: 'success' });
+            } else {
+                const res = await axios.post('/api/admin/courses', courseFormData);
+                setCourses([...courses, res.data]);
+                setMessage({ text: 'Tạo khóa học mới thành công!', type: 'success' });
+            }
+            setShowCourseModal(false);
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Thao tác thất bại!', type: 'error' });
+        }
+    };
+
+    const handleDeleteCourse = async (courseId, courseName) => {
+        if (!window.confirm(`Xóa khóa học "${courseName}" sẽ xóa toàn bộ bài học, từ vựng và ngữ pháp bên trong!`)) return;
+        try {
+            await axios.delete(`/api/admin/courses/${courseId}`);
+            setCourses(courses.filter(c => c.id !== courseId));
+            if (selectedCourse?.id === courseId) setSelectedCourse(null);
+            setMessage({ text: 'Đã xóa khóa học!', type: 'success' });
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Xóa thất bại!', type: 'error' });
+        }
+    };
+
+    // ================= QUẢN LÝ BÀI HỌC =================
+    const handleOpenCreateLesson = () => {
+        setIsEditingLesson(false);
+        const nextOrder = lessons.length > 0 ? Math.max(...lessons.map(l => l.orderIndex || 0)) + 1 : 1;
+        setLessonFormData({ id: null, title: '', orderIndex: nextOrder });
+        setShowLessonModal(true);
+    };
+
+    const handleOpenEditLesson = (lesson) => {
+        setIsEditingLesson(true);
+        setLessonFormData({ id: lesson.id, title: lesson.title, orderIndex: lesson.orderIndex });
+        setShowLessonModal(true);
+    };
+
+    const handleSaveLesson = async (e) => {
+        e.preventDefault();
+        try {
+            if (isEditingLesson) {
+                const res = await axios.put(`/api/admin/lessons/${lessonFormData.id}`, {
+                    courseId: selectedCourse.id,
+                    title: lessonFormData.title,
+                    orderIndex: Number(lessonFormData.orderIndex)
+                });
+                setLessons(lessons.map(l => l.id === res.data.id ? res.data : l));
+                if (selectedLesson?.id === res.data.id) setSelectedLesson(res.data);
+                setMessage({ text: 'Cập nhật bài học thành công!', type: 'success' });
+            } else {
+                const res = await axios.post('/api/admin/lessons', {
+                    courseId: selectedCourse.id,
+                    title: lessonFormData.title,
+                    orderIndex: Number(lessonFormData.orderIndex)
+                });
+                setLessons([...lessons, res.data]);
+                setMessage({ text: 'Tạo bài học thành công!', type: 'success' });
+            }
+            setShowLessonModal(false);
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Thao tác bài học thất bại!', type: 'error' });
+        }
+    };
+
+    const handleDeleteLesson = async (id) => {
+        if (!window.confirm('Bạn có chắc muốn xóa bài học này?')) return;
+        try {
+            await axios.delete(`/api/admin/lessons/${id}`);
+            setLessons(lessons.filter(l => l.id !== id));
+            setMessage({ text: 'Đã xóa bài học thành công!', type: 'success' });
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Xóa bài học thất bại!', type: 'error' });
+        }
+    };
+
+    // ================= QUẢN LÝ TỪ VỰNG =================
+    const handleOpenCreateVocab = () => {
+        setIsEditingVocab(false);
+        setVocabFormData({ id: null, wordKr: '', meaningVn: '' });
+        setShowVocabModal(true);
+    };
+
+    const handleOpenEditVocab = (v) => {
+        setIsEditingVocab(true);
+        setVocabFormData({ id: v.id, wordKr: v.wordKr, meaningVn: v.meaningVn });
+        setShowVocabModal(true);
+    };
+
+    const handleSaveVocab = async (e) => {
+        e.preventDefault();
+        try {
+            if (isEditingVocab) {
+                const res = await axios.put(`/api/admin/vocabularies/${vocabFormData.id}`, {
+                    lessonId: selectedLesson.id,
+                    wordKr: vocabFormData.wordKr,
+                    meaningVn: vocabFormData.meaningVn
+                });
+                setVocabularies(vocabularies.map(v => v.id === res.data.id ? res.data : v));
+                setMessage({ text: 'Đã cập nhật từ vựng!', type: 'success' });
+            } else {
+                const res = await axios.post('/api/admin/vocabularies', {
+                    lessonId: selectedLesson.id,
+                    wordKr: vocabFormData.wordKr,
+                    meaningVn: vocabFormData.meaningVn
+                });
+                setVocabularies([...vocabularies, res.data]);
+                setMessage({ text: 'Đã thêm từ vựng mới!', type: 'success' });
+            }
+            setShowVocabModal(false);
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Thao tác từ vựng thất bại!', type: 'error' });
+        }
+    };
+
+    const handleDeleteVocab = async (id) => {
+        if (!window.confirm('Xóa từ vựng này?')) return;
+        try {
+            await axios.delete(`/api/admin/vocabularies/${id}`);
+            setVocabularies(vocabularies.filter(v => v.id !== id));
+            setMessage({ text: 'Đã xóa từ vựng!', type: 'success' });
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Xóa thất bại!', type: 'error' });
+        }
+    };
+
+    // ================= QUẢN LÝ NGỮ PHÁP =================
+    const handleOpenCreateGrammar = () => {
+        setIsEditingGrammar(false);
+        setGrammarFormData({ id: null, structure: '', usageDesc: '', exampleKr: '', exampleVn: '' });
+        setShowGrammarModal(true);
+    };
+
+    const handleOpenEditGrammar = (g) => {
+        setIsEditingGrammar(true);
+        setGrammarFormData({
+            id: g.id,
+            structure: g.structure,
+            usageDesc: g.usageDesc || '',
+            exampleKr: g.exampleKr || '',
+            exampleVn: g.exampleVn || ''
+        });
+        setShowGrammarModal(true);
+    };
+
+    const handleSaveGrammar = async (e) => {
+        e.preventDefault();
+        try {
+            if (isEditingGrammar) {
+                const res = await axios.put(`/api/admin/grammars/${grammarFormData.id}`, {
+                    lessonId: selectedLesson.id,
+                    ...grammarFormData
+                });
+                setGrammars(grammars.map(g => g.id === res.data.id ? res.data : g));
+                setMessage({ text: 'Đã cập nhật cấu trúc ngữ pháp!', type: 'success' });
+            } else {
+                const res = await axios.post('/api/admin/grammars', {
+                    lessonId: selectedLesson.id,
+                    ...grammarFormData
+                });
+                setGrammars([...grammars, res.data]);
+                setMessage({ text: 'Đã thêm ngữ pháp mới!', type: 'success' });
+            }
+            setShowGrammarModal(false);
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Thao tác ngữ pháp thất bại!', type: 'error' });
+        }
+    };
+
+    const handleDeleteGrammar = async (id) => {
+        if (!window.confirm('Xóa cấu trúc ngữ pháp này?')) return;
+        try {
+            await axios.delete(`/api/admin/grammars/${id}`);
+            setGrammars(grammars.filter(g => g.id !== id));
+            setMessage({ text: 'Đã xóa ngữ pháp!', type: 'success' });
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Xóa thất bại!', type: 'error' });
+        }
+    };
+
+    // ================= IMPORT HÀNG LOẠT =================
     const handleVocabFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -121,16 +346,16 @@ const CourseManagement = () => {
             reader.onload = (event) => {
                 try {
                     const json = JSON.parse(event.target.result);
-                    if (!Array.isArray(json)) throw new Error('Dữ liệu JSON phải là mảng []');
-                    const result = json.map(item => ({
+                    const array = Array.isArray(json) ? json : [json];
+                    const result = array.map(item => ({
                         lessonId: selectedLesson.id,
                         wordKr: item.wordKr || item.word || item['Từ tiếng Hàn'] || '',
                         meaningVn: item.meaningVn || item.meaning || item['Nghĩa tiếng Việt'] || '',
-                        audioUrl: item.audioUrl || null
+                        audioUrl: null
                     })).filter(item => item.wordKr && item.meaningVn);
                     setParsedVocabList(result);
                 } catch {
-                    alert('File JSON không hợp lệ hoặc sai cấu trúc!');
+                    alert('File JSON không hợp lệ!');
                 }
             };
             reader.readAsText(file);
@@ -141,11 +366,8 @@ const CourseManagement = () => {
                     const workbook = XLSX.read(event.target.result, { type: 'binary' });
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
                     const result = [];
-                    // Bỏ qua dòng tiêu đề nếu dòng đầu tiên chứa chữ "Từ" hoặc "Word"
                     const startIndex = (rows[0] && (String(rows[0][0]).toLowerCase().includes('từ') || String(rows[0][0]).toLowerCase().includes('word'))) ? 1 : 0;
-
                     for (let i = startIndex; i < rows.length; i++) {
                         const row = rows[i];
                         if (row && row[0] && row[1]) {
@@ -170,16 +392,13 @@ const CourseManagement = () => {
         setBatchVocabText(text);
         const lines = text.split('\n');
         const result = [];
-
         lines.forEach((line) => {
             const cleanLine = line.trim();
             if (!cleanLine) return;
-
             let parts = cleanLine.split('\t');
             if (parts.length < 2) parts = cleanLine.split(' - ');
             if (parts.length < 2) parts = cleanLine.split(':');
             if (parts.length < 2) parts = cleanLine.split(',');
-
             if (parts.length >= 2) {
                 result.push({
                     lessonId: selectedLesson.id,
@@ -193,25 +412,14 @@ const CourseManagement = () => {
     };
 
     const downloadVocabExcelTemplate = () => {
-        const wsData = [
-            ['Từ tiếng Hàn', 'Nghĩa tiếng Việt'],
-            ['사과', 'Quả táo'],
-            ['학교', 'Trường học'],
-            ['선생님', 'Giáo viên'],
-            ['학생', 'Học sinh']
-        ];
-        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const ws = XLSX.utils.aoa_to_sheet([['Từ tiếng Hàn', 'Nghĩa tiếng Việt'], ['사과', 'Quả táo'], ['학교', 'Trường học']]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'TuVung');
         XLSX.writeFile(wb, 'Mau_Import_Tu_Vung.xlsx');
     };
 
     const downloadVocabJsonTemplate = () => {
-        const data = [
-            { wordKr: "사과", meaningVn: "Quả táo" },
-            { wordKr: "학교", meaningVn: "Trường học" },
-            { wordKr: "선생님", meaningVn: "Giáo viên" }
-        ];
+        const data = [{ wordKr: "사과", meaningVn: "Quả táo" }, { wordKr: "학교", meaningVn: "Trường học" }];
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -230,12 +438,11 @@ const CourseManagement = () => {
             setBatchVocabText('');
             setParsedVocabList([]);
             setMessage({ text: `Đã import thành công ${res.data.length} từ vựng!`, type: 'success' });
-        } catch {
-            setMessage({ text: 'Lỗi khi lưu danh sách từ vựng!', type: 'error' });
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Lỗi lưu danh sách từ vựng!', type: 'error' });
         }
     };
 
-    // ================= 3. IMPORT FILE (EXCEL / JSON) - NGỮ PHÁP =================
     const handleGrammarFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -246,8 +453,8 @@ const CourseManagement = () => {
             reader.onload = (event) => {
                 try {
                     const json = JSON.parse(event.target.result);
-                    if (!Array.isArray(json)) throw new Error('Dữ liệu JSON phải là mảng []');
-                    const result = json.map(item => ({
+                    const array = Array.isArray(json) ? json : [json];
+                    const result = array.map(item => ({
                         lessonId: selectedLesson.id,
                         structure: item.structure || item['Cấu trúc'] || '',
                         usageDesc: item.usageDesc || item['Cách dùng'] || '',
@@ -256,7 +463,7 @@ const CourseManagement = () => {
                     })).filter(item => item.structure);
                     setParsedGrammarList(result);
                 } catch {
-                    alert('File JSON ngữ pháp không hợp lệ!');
+                    alert('File JSON không hợp lệ!');
                 }
             };
             reader.readAsText(file);
@@ -267,10 +474,8 @@ const CourseManagement = () => {
                     const workbook = XLSX.read(event.target.result, { type: 'binary' });
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
                     const result = [];
                     const startIndex = (rows[0] && String(rows[0][0]).toLowerCase().includes('cấu trúc')) ? 1 : 0;
-
                     for (let i = startIndex; i < rows.length; i++) {
                         const row = rows[i];
                         if (row && row[0]) {
@@ -299,8 +504,6 @@ const CourseManagement = () => {
             setParsedGrammarList([]);
             return;
         }
-
-        // 1. Kiểm tra nếu người dùng dán trực tiếp đoạn mã JSON vào ô
         if (clean.startsWith('[') || clean.startsWith('{')) {
             try {
                 const parsed = JSON.parse(clean);
@@ -309,28 +512,20 @@ const CourseManagement = () => {
                     lessonId: selectedLesson.id,
                     structure: item.structure || item['Cấu trúc'] || '',
                     usageDesc: item.usageDesc || item['Cách dùng'] || '',
-                    exampleKr: item.exampleKr || item['Ví dụ tiếng Hàn'] || item['Ví dụ'] || '',
-                    exampleVn: item.exampleVn || item['Nghĩa ví dụ'] || item['Dịch'] || ''
+                    exampleKr: item.exampleKr || item['Ví dụ tiếng Hàn'] || '',
+                    exampleVn: item.exampleVn || item['Nghĩa ví dụ'] || ''
                 })).filter(item => item.structure);
-
                 setParsedGrammarList(result);
                 return;
-            } catch {
-                // Nếu người dùng đang gõ dở JSON thì tiếp tục rơi xuống parse dòng thông thường
-            }
+            } catch { }
         }
-
-        // 2. Parse theo định dạng dòng truyền thống (Phân cách bằng Tab hoặc dấu |)
         const lines = text.split('\n');
         const result = [];
-
         lines.forEach((line) => {
             const cleanLine = line.trim();
             if (!cleanLine) return;
-
             let parts = cleanLine.split('\t');
             if (parts.length < 2) parts = cleanLine.split('|');
-
             if (parts.length >= 1 && parts[0].trim()) {
                 result.push({
                     lessonId: selectedLesson.id,
@@ -345,37 +540,14 @@ const CourseManagement = () => {
     };
 
     const downloadGrammarExcelTemplate = () => {
-        const wsData = [
-            ['Cấu trúc', 'Cách dùng', 'Ví dụ tiếng Hàn', 'Nghĩa ví dụ'],
-            ['N + 은/는', 'Trợ từ chủ đề gắn sau danh từ', '저는 학생입니다', 'Tôi là học sinh'],
-            ['N + 이/가', 'Trợ từ biểu thị chủ ngữ', '비가 와요', 'Trời đang mưa']
-        ];
-        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const ws = XLSX.utils.aoa_to_sheet([['Cấu trúc', 'Cách dùng', 'Ví dụ tiếng Hàn', 'Nghĩa ví dụ'], ['N + 은/는', 'Trợ từ chủ đề', '저는 학생입니다', 'Tôi là học sinh']]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'NguPhap');
         XLSX.writeFile(wb, 'Mau_Import_Ngu_Phap.xlsx');
     };
+
     const downloadGrammarJsonTemplate = () => {
-        const data = [
-            {
-                structure: "N + 은/는",
-                usageDesc: "Trợ từ chủ đề gắn sau danh từ. 은 khi có patchim, 는 khi không có patchim.",
-                exampleKr: "저는 학생입니다.",
-                exampleVn: "Tôi là học sinh."
-            },
-            {
-                structure: "N + 이/가",
-                usageDesc: "Trợ từ biểu thị chủ ngữ trong câu.",
-                exampleKr: "비가 와요.",
-                exampleVn: "Trời đang mưa."
-            },
-            {
-                structure: "V/A + -아요/어요",
-                usageDesc: "Đuôi câu thân mật lịch sự thì hiện tại.",
-                exampleKr: "사과를 먹어요.",
-                exampleVn: "Tôi ăn táo."
-            }
-        ];
+        const data = [{ structure: "N + 은/는", usageDesc: "Trợ từ chủ đề", exampleKr: "저는 학생입니다.", exampleVn: "Tôi là học sinh." }];
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -394,112 +566,8 @@ const CourseManagement = () => {
             setBatchGrammarText('');
             setParsedGrammarList([]);
             setMessage({ text: `Đã import thành công ${res.data.length} ngữ pháp!`, type: 'success' });
-        } catch {
-            setMessage({ text: 'Lỗi khi lưu ngữ pháp hàng loạt!', type: 'error' });
-        }
-    };
-
-    // ================= 4. SINGLE CRUD THÔNG THƯỜNG =================
-    const handleUpdateCourse = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await axios.put(`/api/admin/courses/${editingCourse.id}`, editingCourse);
-            setCourses(courses.map(c => c.id === res.data.id ? res.data : c));
-            if (selectedCourse?.id === res.data.id) setSelectedCourse(res.data);
-            setShowEditCourseModal(false);
-            setMessage({ text: 'Cập nhật thành công!', type: 'success' });
-        } catch {
-            setMessage({ text: 'Cập nhật thất bại!', type: 'error' });
-        }
-    };
-
-    const handleAddLesson = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await axios.post('/api/admin/lessons', {
-                courseId: selectedCourse.id,
-                title: newLessonTitle,
-                orderIndex: Number(newLessonOrder)
-            });
-            setLessons([...lessons, res.data]);
-            setNewLessonTitle('');
-            setShowAddLessonModal(false);
-            setMessage({ text: 'Tạo bài học thành công!', type: 'success' });
-        } catch {
-            setMessage({ text: 'Tạo bài học thất bại!', type: 'error' });
-        }
-    };
-
-    const handleDeleteLesson = async (id) => {
-        if (!window.confirm('Bạn có chắc muốn xóa bài học này?')) return;
-        try {
-            await axios.delete(`/api/admin/lessons/${id}`);
-            setLessons(lessons.filter(l => l.id !== id));
-            setMessage({ text: 'Đã xóa bài học!', type: 'success' });
-        } catch {
-            setMessage({ text: 'Xóa thất bại!', type: 'error' });
-        }
-    };
-
-    const handleAddVocabulary = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await axios.post('/api/admin/vocabularies', {
-                lessonId: selectedLesson.id,
-                wordKr: newWordKr,
-                meaningVn: newMeaningVn
-            });
-            setVocabularies([...vocabularies, res.data]);
-            setNewWordKr('');
-            setNewMeaningVn('');
-            setShowAddVocabModal(false);
-            setMessage({ text: 'Đã thêm từ vựng mới!', type: 'success' });
-        } catch {
-            setMessage({ text: 'Thêm thất bại!', type: 'error' });
-        }
-    };
-
-    const handleDeleteVocab = async (id) => {
-        if (!window.confirm('Xóa từ vựng này?')) return;
-        try {
-            await axios.delete(`/api/admin/vocabularies/${id}`);
-            setVocabularies(vocabularies.filter(v => v.id !== id));
-            setMessage({ text: 'Đã xóa từ vựng!', type: 'success' });
-        } catch {
-            setMessage({ text: 'Xóa thất bại!', type: 'error' });
-        }
-    };
-
-    const handleAddGrammar = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await axios.post('/api/admin/grammars', {
-                lessonId: selectedLesson.id,
-                structure: newStructure,
-                usageDesc: newUsageDesc,
-                exampleKr: newExampleKr,
-                exampleVn: newExampleVn
-            });
-            setGrammars([...grammars, res.data]);
-            setNewStructure('');
-            setNewUsageDesc('');
-            setNewExampleKr('');
-            setNewExampleVn('');
-            setShowAddGrammarModal(false);
-            setMessage({ text: 'Đã thêm ngữ pháp!', type: 'success' });
-        } catch {
-            setMessage({ text: 'Thêm thất bại!', type: 'error' });
-        }
-    };
-
-    const handleDeleteGrammar = async (id) => {
-        if (!window.confirm('Xóa ngữ pháp này?')) return;
-        try {
-            await axios.delete(`/api/admin/grammars/${id}`);
-            setGrammars(grammars.filter(g => g.id !== id));
-            setMessage({ text: 'Đã xóa ngữ pháp!', type: 'success' });
-        } catch {
-            setMessage({ text: 'Xóa thất bại!', type: 'error' });
+        } catch (err) {
+            setMessage({ text: err.response?.data?.message || 'Lỗi lưu ngữ pháp hàng loạt!', type: 'error' });
         }
     };
 
@@ -547,132 +615,173 @@ const CourseManagement = () => {
             </div>
 
             {message.text && (
-                <div className={`p-3 rounded-2xl text-xs font-bold flex items-center justify-between ${message.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-600 border border-rose-200'
+                <div className={`p-3 rounded-2xl text-xs font-bold flex items-center justify-between ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'
                     }`}>
                     <span>{message.text}</span>
                     <button onClick={() => setMessage({ text: '', type: '' })}>✕</button>
                 </div>
             )}
 
-            {/* TẦNG 1: KHÓA HỌC */}
+            {/* ========================================================================= */}
+            {/* TẦNG 1: DANH SÁCH KHÓA HỌC (HIỂN THỊ CẢ TRẠNG THÁI OPEN/CLOSED) */}
+            {/* ========================================================================= */}
             {!selectedCourse && (
-                <div className="space-y-4">
-                    <div>
-                        <h2 className="text-2xl font-extrabold text-[#373A4D]">Khóa học & Cấp độ</h2>
-                        <p className="text-xs text-gray-500 font-medium mt-1">
-                            Quản lý định giá thương mại và nội dung theo từng cấp độ tiếng Hàn.
-                        </p>
+                <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-2xl font-extrabold text-[#373A4D]">Khóa học & Giáo trình</h2>
+                            <p className="text-xs text-gray-500 font-medium mt-1">
+                                Tạo khóa học mới, thiết lập ảnh bìa, giá bán niêm yết và trạng thái Đóng/Mở.
+                            </p>
+                        </div>
+                        <button
+                            onClick={handleOpenCreateCourse}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#F06292] hover:bg-[#e05584] text-white text-xs font-bold rounded-2xl transition shadow-sm self-start"
+                        >
+                            <Plus size={16} /> Thêm khóa học mới
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {courses.map((c) => (
-                            <div key={c.id} className="bg-white rounded-3xl border border-pink-100 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:border-pink-300 transition flex flex-col justify-between">
-                                <div>
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#F06292] to-[#F8BBD0] flex items-center justify-center text-white shadow-sm">
-                                            <BookOpen size={24} />
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`px-3 py-1 rounded-full text-[11px] font-extrabold ${c.isFree
-                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                                : 'bg-pink-50 text-[#F06292] border border-pink-200'
-                                                }`}>
-                                                {c.isFree ? 'MIỄN PHÍ' : 'TÍNH PHÍ'}
-                                            </span>
-                                            <button
-                                                onClick={() => { setEditingCourse({ ...c }); setShowEditCourseModal(true); }}
-                                                className="p-1.5 text-gray-400 hover:text-[#F06292] rounded-xl hover:bg-pink-50 transition"
-                                            >
-                                                <Edit3 size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <h3 className="text-lg font-extrabold text-[#373A4D] mt-4">{c.name}</h3>
-                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{c.description || 'Chưa có mô tả.'}</p>
-
-                                    <div className="mt-4 pt-4 border-t border-pink-50 flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[11px] font-bold text-gray-400 uppercase">Giá bán niêm yết:</span>
-                                            <p className="text-base font-extrabold text-[#F06292]">
-                                                {c.isFree ? '0 VNĐ' : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.price)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => handleSelectCourse(c)}
-                                    className="w-full mt-6 py-3 bg-[#FFF5F7] hover:bg-[#F06292] text-[#F06292] hover:text-white rounded-2xl text-xs font-extrabold transition flex items-center justify-center gap-2"
-                                >
-                                    <Layers size={14} /> Quản lý danh sách bài học
-                                </button>
+                        {courses.length === 0 ? (
+                            <div className="col-span-2 py-16 text-center bg-white rounded-3xl border border-dashed border-pink-200 p-8">
+                                <BookOpen className="w-12 h-12 text-pink-300 mx-auto mb-3" />
+                                <h3 className="text-sm font-bold text-gray-700">Chưa có khóa học nào</h3>
+                                <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                                    Hãy nhấn nút "+ Thêm khóa học mới" để bắt đầu thiết lập lộ trình học.
+                                </p>
                             </div>
-                        ))}
+                        ) : (
+                            courses.map((c) => (
+                                <div key={c.id} className="bg-white rounded-3xl border border-pink-100 p-5 shadow-sm hover:border-pink-300 transition flex flex-col justify-between">
+                                    <div className="flex gap-4 items-start">
+                                        <div className="w-24 h-32 rounded-2xl overflow-hidden bg-pink-50 border border-pink-100 shrink-0 shadow-sm relative">
+                                            {c.thumbnailUrl ? (
+                                                <img src={c.thumbnailUrl} alt={c.name} className="w-full h-full object-cover" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&q=80'; }} />
+                                            ) : (
+                                                <div className="w-full h-full flex flex-col items-center justify-center text-[#F06292] p-2 text-center">
+                                                    <BookOpen size={24} />
+                                                    <span className="text-[9px] font-bold mt-1 text-gray-400">Chưa có bìa</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${c.isFree ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-pink-50 text-[#F06292] border border-pink-200'
+                                                        }`}>
+                                                        {c.isFree ? 'MIỄN PHÍ' : 'TÍNH PHÍ'}
+                                                    </span>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase flex items-center gap-1 ${c.status === 'OPEN' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                                        }`}>
+                                                        {c.status === 'OPEN' ? <><CheckCircle size={10} /> ĐANG MỞ</> : <><EyeOff size={10} /> TẠM ĐÓNG</>}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-1">
+                                                    <button onClick={() => handleOpenEditCourse(c)} className="p-1.5 text-gray-400 hover:text-[#F06292] rounded-xl hover:bg-pink-50 transition" title="Sửa">
+                                                        <Edit3 size={15} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteCourse(c.id, c.name)} className="p-1.5 text-gray-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Xóa">
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <h3 className="text-base font-extrabold text-[#373A4D] mt-2 line-clamp-1">{c.name}</h3>
+                                            <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{c.description || 'Chưa có mô tả.'}</p>
+
+                                            <div className="mt-3">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase">Giá bán:</span>
+                                                <p className="text-sm font-extrabold text-[#F06292]">
+                                                    {c.isFree ? '0 VNĐ' : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.price)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => handleSelectCourse(c)}
+                                        className="w-full mt-5 py-2.5 bg-[#FFF5F7] hover:bg-[#F06292] text-[#F06292] hover:text-white rounded-2xl text-xs font-extrabold transition flex items-center justify-center gap-2 shadow-sm"
+                                    >
+                                        <Layers size={14} /> Quản lý danh sách bài học
+                                    </button>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* TẦNG 2: BÀI HỌC */}
+            {/* ========================================================================= */}
+            {/* TẦNG 2: BÀI HỌC (THÊM / SỬA / XÓA) */}
+            {/* ========================================================================= */}
             {selectedCourse && !selectedLesson && (
                 <div className="space-y-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h2 className="text-2xl font-extrabold text-[#373A4D]">{selectedCourse.name}</h2>
-                            <p className="text-xs text-gray-500 font-medium mt-1">
-                                Danh sách bài học. Nhấp vào để soạn Từ vựng và Ngữ pháp.
-                            </p>
+                            <p className="text-xs text-gray-500 font-medium mt-1">Danh sách bài học trong khóa.</p>
                         </div>
                         <button
-                            onClick={() => setShowAddLessonModal(true)}
+                            onClick={handleOpenCreateLesson}
                             className="flex items-center gap-2 px-4 py-2.5 bg-[#F06292] hover:bg-[#e05584] text-white text-xs font-bold rounded-2xl transition shadow-sm self-start"
                         >
                             <Plus size={16} /> Thêm bài học mới
                         </button>
                     </div>
 
-                    <div className="bg-white rounded-3xl border border-pink-50 shadow-[0_4px_20px_rgb(0,0,0,0.02)] overflow-hidden">
+                    <div className="bg-white rounded-3xl border border-pink-50 shadow-sm overflow-hidden">
                         <table className="w-full text-left text-xs text-gray-600">
                             <thead className="bg-[#FFF5F7] text-[#373A4D] font-extrabold uppercase text-[11px] border-b border-pink-100">
                                 <tr>
                                     <th className="py-4 px-6 w-20">Thứ tự</th>
                                     <th className="py-4 px-6">Tên bài học</th>
                                     <th className="py-4 px-6 text-center w-48">Nội dung</th>
-                                    <th className="py-4 px-6 text-center w-24">Thao tác</th>
+                                    <th className="py-4 px-6 text-center w-28">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-pink-50">
-                                {lessons.map((lesson) => (
-                                    <tr key={lesson.id} className="hover:bg-[#FFFDFE] transition">
-                                        <td className="py-4 px-6 font-bold text-gray-400">#{lesson.orderIndex}</td>
-                                        <td className="py-4 px-6 font-bold text-[#373A4D]">{lesson.title}</td>
-                                        <td className="py-4 px-6 text-center">
-                                            <button
-                                                onClick={() => handleSelectLesson(lesson)}
-                                                className="px-3.5 py-1.5 bg-pink-50 text-[#F06292] border border-pink-200 rounded-xl hover:bg-[#F06292] hover:text-white transition font-bold text-xs inline-flex items-center gap-1.5"
-                                            >
-                                                <BookMarked size={14} /> Soạn nội dung
-                                            </button>
-                                        </td>
-                                        <td className="py-4 px-6 text-center">
-                                            <button
-                                                onClick={() => handleDeleteLesson(lesson.id)}
-                                                className="p-2 text-gray-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition"
-                                            >
-                                                <Trash2 size={15} />
-                                            </button>
-                                        </td>
+                                {lessons.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="4" className="py-12 text-center text-gray-400 font-medium">Chưa có bài học nào.</td>
                                     </tr>
-                                ))}
+                                ) : (
+                                    lessons.map((lesson) => (
+                                        <tr key={lesson.id} className="hover:bg-[#FFFDFE] transition">
+                                            <td className="py-4 px-6 font-bold text-gray-400">#{lesson.orderIndex}</td>
+                                            <td className="py-4 px-6 font-bold text-[#373A4D] text-sm">{lesson.title}</td>
+                                            <td className="py-4 px-6 text-center">
+                                                <button
+                                                    onClick={() => handleSelectLesson(lesson)}
+                                                    className="px-3.5 py-1.5 bg-pink-50 text-[#F06292] border border-pink-200 rounded-xl hover:bg-[#F06292] hover:text-white transition font-bold text-xs inline-flex items-center gap-1.5"
+                                                >
+                                                    <BookMarked size={14} /> Soạn nội dung
+                                                </button>
+                                            </td>
+                                            <td className="py-4 px-6 text-center">
+                                                <div className="inline-flex items-center gap-1">
+                                                    <button onClick={() => handleOpenEditLesson(lesson)} className="p-2 text-gray-400 hover:text-[#F06292] rounded-xl hover:bg-pink-50 transition" title="Sửa bài học">
+                                                        <Edit3 size={15} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteLesson(lesson.id)} className="p-2 text-gray-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Xóa bài học">
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
             )}
 
-            {/* TẦNG 3: SOẠN TỪ VỰNG & NGỮ PHÁP */}
+            {/* ========================================================================= */}
+            {/* TẦNG 3: TỪ VỰNG & NGỮ PHÁP (CÓ NÚT SỬA NHANH & XÓA) */}
+            {/* ========================================================================= */}
             {selectedLesson && (
                 <div className="space-y-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -686,15 +795,13 @@ const CourseManagement = () => {
                         <div className="flex bg-[#FFF5F7] p-1.5 rounded-2xl border border-pink-100 self-start">
                             <button
                                 onClick={() => setActiveTab('vocab')}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'vocab' ? 'bg-white text-[#F06292] shadow-sm' : 'text-gray-500'
-                                    }`}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'vocab' ? 'bg-white text-[#F06292] shadow-sm' : 'text-gray-500'}`}
                             >
                                 Từ vựng ({vocabularies.length})
                             </button>
                             <button
                                 onClick={() => setActiveTab('grammar')}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'grammar' ? 'bg-white text-[#F06292] shadow-sm' : 'text-gray-500'
-                                    }`}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'grammar' ? 'bg-white text-[#F06292] shadow-sm' : 'text-gray-500'}`}
                             >
                                 Ngữ pháp ({grammars.length})
                             </button>
@@ -705,22 +812,16 @@ const CourseManagement = () => {
                     {activeTab === 'vocab' && (
                         <div className="space-y-4">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                                <p className="text-xs text-gray-500 font-medium">
-                                    Hỗ trợ thêm bằng file Excel (`.xlsx`), JSON (`.json`) hoặc dán trực tiếp.
-                                </p>
+                                <p className="text-xs text-gray-500 font-medium">Quản lý từ vựng của bài học.</p>
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => {
-                                            setParsedVocabList([]);
-                                            setBatchVocabText('');
-                                            setShowBatchVocabModal(true);
-                                        }}
+                                        onClick={() => { setParsedVocabList([]); setBatchVocabText(''); setShowBatchVocabModal(true); }}
                                         className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs font-bold rounded-2xl transition shadow-sm"
                                     >
                                         <FileSpreadsheet size={15} /> Import Excel / JSON
                                     </button>
                                     <button
-                                        onClick={() => setShowAddVocabModal(true)}
+                                        onClick={handleOpenCreateVocab}
                                         className="flex items-center gap-1.5 px-3.5 py-2 bg-[#F06292] hover:bg-[#e05584] text-white text-xs font-bold rounded-2xl transition shadow-sm"
                                     >
                                         <Plus size={15} /> Thêm lẻ từng từ
@@ -728,24 +829,20 @@ const CourseManagement = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-3xl border border-pink-50 shadow-[0_4px_20px_rgb(0,0,0,0.02)] overflow-hidden">
+                            <div className="bg-white rounded-3xl border border-pink-50 shadow-sm overflow-hidden">
                                 <table className="w-full text-left text-xs text-gray-600">
                                     <thead className="bg-[#FFF5F7] text-[#373A4D] font-extrabold uppercase text-[11px] border-b border-pink-100">
                                         <tr>
                                             <th className="py-4 px-6 w-16">ID</th>
                                             <th className="py-4 px-6">Từ tiếng Hàn</th>
                                             <th className="py-4 px-6">Nghĩa tiếng Việt</th>
-                                            <th className="py-4 px-6 text-center w-28">Nghe thử (TTS)</th>
-                                            <th className="py-4 px-6 text-center w-20">Thao tác</th>
+                                            <th className="py-4 px-6 text-center w-28">Nghe (TTS)</th>
+                                            <th className="py-4 px-6 text-center w-28">Thao tác</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-pink-50">
                                         {vocabularies.length === 0 ? (
-                                            <tr>
-                                                <td colSpan="5" className="py-8 text-center text-gray-400 font-medium">
-                                                    Bài học chưa có từ vựng. Hãy bấm "Import Excel / JSON" để nạp nhanh!
-                                                </td>
-                                            </tr>
+                                            <tr><td colSpan="5" className="py-8 text-center text-gray-400 font-medium">Chưa có từ vựng nào.</td></tr>
                                         ) : (
                                             vocabularies.map((v) => (
                                                 <tr key={v.id} className="hover:bg-[#FFFDFE] transition">
@@ -753,20 +850,19 @@ const CourseManagement = () => {
                                                     <td className="py-4 px-6 font-extrabold text-[#373A4D] text-sm">{v.wordKr}</td>
                                                     <td className="py-4 px-6 font-medium text-gray-600">{v.meaningVn}</td>
                                                     <td className="py-4 px-6 text-center">
-                                                        <button
-                                                            onClick={() => speakKorean(v.wordKr)}
-                                                            className="p-2 text-[#F06292] bg-pink-50 hover:bg-pink-100 rounded-xl transition"
-                                                        >
+                                                        <button onClick={() => speakKorean(v.wordKr)} className="p-2 text-[#F06292] bg-pink-50 hover:bg-pink-100 rounded-xl transition" title="Nghe phát âm">
                                                             <Volume2 size={16} />
                                                         </button>
                                                     </td>
                                                     <td className="py-4 px-6 text-center">
-                                                        <button
-                                                            onClick={() => handleDeleteVocab(v.id)}
-                                                            className="p-2 text-gray-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition"
-                                                        >
-                                                            <Trash2 size={15} />
-                                                        </button>
+                                                        <div className="inline-flex items-center gap-1">
+                                                            <button onClick={() => handleOpenEditVocab(v)} className="p-2 text-gray-400 hover:text-[#F06292] rounded-xl hover:bg-pink-50 transition" title="Sửa từ vựng">
+                                                                <Edit3 size={15} />
+                                                            </button>
+                                                            <button onClick={() => handleDeleteVocab(v.id)} className="p-2 text-gray-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition" title="Xóa">
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))
@@ -781,22 +877,16 @@ const CourseManagement = () => {
                     {activeTab === 'grammar' && (
                         <div className="space-y-4">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                                <p className="text-xs text-gray-500 font-medium">
-                                    Cấu trúc ngữ pháp, hướng dẫn cách sử dụng và câu ví dụ minh họa.
-                                </p>
+                                <p className="text-xs text-gray-500 font-medium">Quản lý các cấu trúc ngữ pháp.</p>
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => {
-                                            setParsedGrammarList([]);
-                                            setBatchGrammarText('');
-                                            setShowBatchGrammarModal(true);
-                                        }}
+                                        onClick={() => { setParsedGrammarList([]); setBatchGrammarText(''); setShowBatchGrammarModal(true); }}
                                         className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs font-bold rounded-2xl transition shadow-sm"
                                     >
                                         <FileSpreadsheet size={15} /> Import Excel / JSON
                                     </button>
                                     <button
-                                        onClick={() => setShowAddGrammarModal(true)}
+                                        onClick={handleOpenCreateGrammar}
                                         className="flex items-center gap-1.5 px-3.5 py-2 bg-[#F06292] hover:bg-[#e05584] text-white text-xs font-bold rounded-2xl transition shadow-sm"
                                     >
                                         <Plus size={15} /> Thêm ngữ pháp
@@ -805,35 +895,40 @@ const CourseManagement = () => {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {grammars.map((g) => (
-                                    <div key={g.id} className="bg-white rounded-3xl border border-pink-100 p-5 shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
-                                        <div className="flex items-start justify-between">
-                                            <span className="px-3 py-1 bg-pink-50 text-[#F06292] font-extrabold text-xs rounded-xl border border-pink-100">
-                                                {g.structure}
-                                            </span>
-                                            <button
-                                                onClick={() => handleDeleteGrammar(g.id)}
-                                                className="p-1.5 text-gray-300 hover:text-rose-600 rounded-lg transition"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-
-                                        <div className="mt-3 space-y-2">
-                                            <div>
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase">Cách dùng:</span>
-                                                <p className="text-xs text-gray-700 mt-0.5">{g.usageDesc || '—'}</p>
-                                            </div>
-                                            {(g.exampleKr || g.exampleVn) && (
-                                                <div className="p-3 bg-[#FFF9FA] rounded-2xl border border-pink-50 text-xs">
-                                                    <span className="text-[10px] font-bold text-[#F06292] uppercase">Ví dụ:</span>
-                                                    {g.exampleKr && <p className="font-bold text-[#373A4D] mt-1">{g.exampleKr}</p>}
-                                                    {g.exampleVn && <p className="text-gray-500 text-[11px] mt-0.5">{g.exampleVn}</p>}
-                                                </div>
-                                            )}
-                                        </div>
+                                {grammars.length === 0 ? (
+                                    <div className="col-span-2 py-10 text-center bg-white rounded-3xl border border-pink-50 text-gray-400 text-xs font-medium">
+                                        Chưa có cấu trúc ngữ pháp nào.
                                     </div>
-                                ))}
+                                ) : (
+                                    grammars.map((g) => (
+                                        <div key={g.id} className="bg-white rounded-3xl border border-pink-100 p-5 shadow-sm relative">
+                                            <div className="flex items-start justify-between">
+                                                <span className="px-3 py-1 bg-pink-50 text-[#F06292] font-extrabold text-xs rounded-xl border border-pink-100">{g.structure}</span>
+                                                <div className="flex items-center gap-1">
+                                                    <button onClick={() => handleOpenEditGrammar(g)} className="p-1.5 text-gray-400 hover:text-[#F06292] rounded-lg hover:bg-pink-50 transition" title="Sửa ngữ pháp">
+                                                        <Edit3 size={14} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteGrammar(g.id)} className="p-1.5 text-gray-300 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition" title="Xóa">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 space-y-2">
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase">Cách dùng:</span>
+                                                    <p className="text-xs text-gray-700 mt-0.5 leading-relaxed">{g.usageDesc || '—'}</p>
+                                                </div>
+                                                {(g.exampleKr || g.exampleVn) && (
+                                                    <div className="p-3 bg-[#FFF9FA] rounded-2xl border border-pink-50 text-xs">
+                                                        <span className="text-[10px] font-bold text-[#F06292] uppercase">Ví dụ:</span>
+                                                        {g.exampleKr && <p className="font-bold text-[#373A4D] mt-1">{g.exampleKr}</p>}
+                                                        {g.exampleVn && <p className="text-gray-500 text-[11px] mt-0.5">{g.exampleVn}</p>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
                     )}
@@ -841,311 +936,122 @@ const CourseManagement = () => {
             )}
 
             {/* ========================================================================= */}
-            {/* MODAL IMPORT TỪ VỰNG (EXCEL / JSON / DÁN TEXT) */}
+            {/* MODAL 1: TẠO / SỬA KHÓA HỌC (CÓ TRẠNG THÁI STATUS) */}
             {/* ========================================================================= */}
-            {showBatchVocabModal && (
+            {showCourseModal && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white w-full max-w-3xl rounded-3xl p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+                    <div className="bg-white w-full max-w-lg rounded-3xl p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between">
+                            <h3 className="text-base font-extrabold text-[#373A4D]">{isEditingCourse ? 'Chỉnh sửa khóa học' : 'Thêm khóa học mới'}</h3>
+                            <button onClick={() => setShowCourseModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                        </div>
+                        <form onSubmit={handleSaveCourse} className="space-y-4 text-xs font-bold text-gray-600">
                             <div>
-                                <h3 className="text-base font-extrabold text-[#373A4D]">Import từ vựng (Excel / JSON)</h3>
-                                <p className="text-xs text-gray-400 font-medium mt-0.5">
-                                    Tải tệp tin lên hoặc dán trực tiếp danh sách từ vào ô bên dưới.
-                                </p>
-                            </div>
-                            <button onClick={() => setShowBatchVocabModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        {/* Nút thao tác tải file & download mẫu */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-pink-50/50 rounded-2xl border border-pink-100">
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="file"
-                                    ref={vocabFileInputRef}
-                                    onChange={handleVocabFileUpload}
-                                    accept=".xlsx, .xls, .csv, .json"
-                                    className="hidden"
-                                />
-                                <button
-                                    onClick={() => vocabFileInputRef.current?.click()}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F06292] hover:bg-[#e05584] text-white text-xs font-bold rounded-xl shadow-sm transition"
-                                >
-                                    <Upload size={14} /> Chọn tệp Excel / JSON
-                                </button>
-                                <span className="text-[11px] text-gray-400 font-medium">Hỗ trợ .xlsx, .csv, .json</span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={downloadVocabExcelTemplate}
-                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-xl text-xs font-bold transition"
-                                >
-                                    <Download size={13} /> Mẫu Excel
-                                </button>
-                                <button
-                                    onClick={downloadVocabJsonTemplate}
-                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-blue-300 text-blue-700 hover:bg-blue-50 rounded-xl text-xs font-bold transition"
-                                >
-                                    <FileCode size={13} /> Mẫu JSON
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
-                            <div className="flex flex-col">
-                                <label className="text-xs font-bold text-gray-600 mb-1">Hoặc dán văn bản trực tiếp:</label>
-                                <textarea
-                                    rows="10"
-                                    value={batchVocabText}
-                                    onChange={(e) => handleParseVocabText(e.target.value)}
-                                    placeholder={`Dán theo dạng:
-사과 - Quả táo
-바나나 - Quả chuối`}
-                                    className="w-full flex-1 p-3 bg-[#FFF9FA] border border-pink-100 rounded-2xl text-xs font-mono focus:outline-none focus:border-[#F06292] resize-none"
-                                />
-                            </div>
-
-                            <div className="flex flex-col overflow-hidden">
-                                <div className="flex items-center justify-between mb-1">
-                                    <label className="text-xs font-bold text-gray-600">Xem trước ({parsedVocabList.length} từ nhận diện được):</label>
-                                </div>
-                                <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-3 overflow-y-auto space-y-2 text-xs">
-                                    {parsedVocabList.length === 0 ? (
-                                        <p className="text-gray-400 text-center py-10">Chưa có dữ liệu nào được nạp</p>
-                                    ) : (
-                                        parsedVocabList.map((item, idx) => (
-                                            <div key={idx} className="bg-white p-2.5 rounded-xl border border-gray-100 flex items-center justify-between">
-                                                <div>
-                                                    <span className="font-extrabold text-[#373A4D]">{item.wordKr}</span>
-                                                    <span className="text-gray-400 mx-2">:</span>
-                                                    <span className="text-gray-600 font-medium">{item.meaningVn}</span>
-                                                </div>
-                                                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">Sẵn sàng</span>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="pt-2 flex justify-end gap-2 border-t border-pink-50">
-                            <button
-                                type="button"
-                                onClick={() => setShowBatchVocabModal(false)}
-                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold text-xs"
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                type="button"
-                                disabled={parsedVocabList.length === 0}
-                                onClick={handleSaveBatchVocab}
-                                className="px-5 py-2 bg-[#F06292] hover:bg-[#e05584] disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm"
-                            >
-                                <Save size={14} /> Lưu tất cả {parsedVocabList.length} từ
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ========================================================================= */}
-            {/* MODAL 2: IMPORT NGỮ PHÁP (EXCEL / JSON / DÁN TEXT) */}
-            {/* ========================================================================= */}
-            {showBatchGrammarModal && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white w-full max-w-3xl rounded-3xl p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-base font-extrabold text-[#373A4D]">Import ngữ pháp (Excel / JSON)</h3>
-                                <p className="text-xs text-gray-400 font-medium mt-0.5">
-                                    Tải file `.xlsx`, `.json` hoặc dán trực tiếp đoạn mã JSON / văn bản vào ô dưới.
-                                </p>
-                            </div>
-                            <button onClick={() => setShowBatchGrammarModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        {/* Thanh công cụ: Chọn file & Tải mẫu */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-pink-50/50 rounded-2xl border border-pink-100">
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="file"
-                                    ref={grammarFileInputRef}
-                                    onChange={handleGrammarFileUpload}
-                                    accept=".xlsx, .xls, .csv, .json"
-                                    className="hidden"
-                                />
-                                <button
-                                    onClick={() => grammarFileInputRef.current?.click()}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F06292] hover:bg-[#e05584] text-white text-xs font-bold rounded-xl shadow-sm transition"
-                                >
-                                    <Upload size={14} /> Chọn tệp Excel / JSON
-                                </button>
-                                <span className="text-[11px] text-gray-400 font-medium">Hỗ trợ .xlsx, .csv, .json</span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={downloadGrammarExcelTemplate}
-                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-xl text-xs font-bold transition"
-                                >
-                                    <Download size={13} /> Mẫu Excel 4 cột
-                                </button>
-                                <button
-                                    onClick={downloadGrammarJsonTemplate}
-                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-blue-300 text-blue-700 hover:bg-blue-50 rounded-xl text-xs font-bold transition"
-                                >
-                                    <FileCode size={13} /> Mẫu JSON
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
-                            <div className="flex flex-col">
-                                <label className="text-xs font-bold text-gray-600 mb-1">
-                                    Dán chuỗi JSON hoặc dòng `Cấu trúc | Cách dùng | Ví dụ | Dịch`:
-                                </label>
-                                <textarea
-                                    rows="10"
-                                    value={batchGrammarText}
-                                    onChange={(e) => handleParseGrammarText(e.target.value)}
-                                    placeholder={`Cách 1 - Dán mảng JSON:
-[
-  {
-    "structure": "N + 은/는",
-    "usageDesc": "Trợ từ chủ đề",
-    "exampleKr": "저는 학생입니다",
-    "exampleVn": "Tôi là học sinh"
-  }
-]
-
-Cách 2 - Dán dạng dòng:
-N + 이/가 | Trợ từ chủ ngữ | 비가 와요 | Trời mưa`}
-                                    className="w-full flex-1 p-3 bg-[#FFF9FA] border border-pink-100 rounded-2xl text-xs font-mono focus:outline-none focus:border-[#F06292] resize-none"
-                                />
-                            </div>
-
-                            <div className="flex flex-col overflow-hidden">
-                                <label className="text-xs font-bold text-gray-600 mb-1">
-                                    Xem trước ({parsedGrammarList.length} cấu trúc nhận diện được):
-                                </label>
-                                <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-3 overflow-y-auto space-y-2 text-xs">
-                                    {parsedGrammarList.length === 0 ? (
-                                        <p className="text-gray-400 text-center py-10">Chưa có dữ liệu nào</p>
-                                    ) : (
-                                        parsedGrammarList.map((item, idx) => (
-                                            <div key={idx} className="bg-white p-2.5 rounded-xl border border-gray-100 space-y-1">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="font-extrabold text-[#F06292] bg-pink-50 px-2 py-0.5 rounded-md text-xs">
-                                                        {item.structure}
-                                                    </span>
-                                                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">
-                                                        Hợp lệ
-                                                    </span>
-                                                </div>
-                                                <p className="text-gray-600 text-[11px] line-clamp-2">
-                                                    {item.usageDesc || 'Chưa có mô tả'}
-                                                </p>
-                                                {(item.exampleKr || item.exampleVn) && (
-                                                    <div className="text-[10px] text-gray-500 bg-gray-50 p-1.5 rounded-lg border border-gray-100">
-                                                        <span className="font-bold text-[#373A4D]">{item.exampleKr}</span>
-                                                        {item.exampleVn && <span className="block text-gray-400">→ {item.exampleVn}</span>}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="pt-2 flex justify-end gap-2 border-t border-pink-50">
-                            <button
-                                type="button"
-                                onClick={() => setShowBatchGrammarModal(false)}
-                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold text-xs"
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                type="button"
-                                disabled={parsedGrammarList.length === 0}
-                                onClick={handleSaveBatchGrammar}
-                                className="px-5 py-2 bg-[#F06292] hover:bg-[#e05584] disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm"
-                            >
-                                <Save size={14} /> Lưu tất cả {parsedGrammarList.length} ngữ pháp
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* CÁC MODAL THÊM LẺ (GIỮ NGUYÊN) */}
-            {showEditCourseModal && editingCourse && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-xl space-y-4">
-                        <h3 className="text-base font-extrabold text-[#373A4D]">Thiết lập khóa học</h3>
-                        <form onSubmit={handleUpdateCourse} className="space-y-3 text-xs font-bold text-gray-600">
-                            <div>
-                                <label className="block mb-1">Tên khóa học:</label>
+                                <label className="block mb-1">Tên khóa học / Giáo trình:</label>
                                 <input
                                     type="text"
-                                    value={editingCourse.name}
-                                    onChange={(e) => setEditingCourse({ ...editingCourse, name: e.target.value })}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none"
+                                    placeholder="Ví dụ: Tiếng Hàn Sơ Cấp 1"
+                                    value={courseFormData.name}
+                                    onChange={(e) => setCourseFormData({ ...courseFormData, name: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                     required
                                 />
                             </div>
+
+                            <div>
+                                <label className="block mb-1">Trạng thái khóa học:</label>
+                                <select
+                                    value={courseFormData.status}
+                                    onChange={(e) => setCourseFormData({ ...courseFormData, status: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292] font-bold text-gray-700"
+                                >
+                                    <option value="OPEN">Đang mở (Công khai cho học viên)</option>
+                                    <option value="CLOSED">Tạm đóng (Bản nháp / Đang cập nhật nội dung)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block mb-1">Đường dẫn ảnh bìa sách (Thumbnail URL):</label>
+                                <input
+                                    type="url"
+                                    placeholder="https://example.com/bia-sach.jpg"
+                                    value={courseFormData.thumbnailUrl}
+                                    onChange={(e) => setCourseFormData({ ...courseFormData, thumbnailUrl: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
+                                />
+                                {courseFormData.thumbnailUrl && (
+                                    <div className="mt-2 flex items-center gap-3 p-2 bg-pink-50/50 rounded-xl border border-pink-100">
+                                        <img src={courseFormData.thumbnailUrl} alt="Preview" className="w-10 h-14 object-cover rounded-lg shadow-sm" onError={(e) => { e.target.style.display = 'none'; }} />
+                                        <span className="text-[11px] text-gray-500 font-medium">Xem trước ảnh bìa giáo trình</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block mb-1">Mô tả tóm tắt:</label>
+                                <textarea
+                                    rows="3"
+                                    placeholder="Lộ trình kiến thức..."
+                                    value={courseFormData.description}
+                                    onChange={(e) => setCourseFormData({ ...courseFormData, description: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
+                                />
+                            </div>
+
                             <div className="flex items-center gap-3 p-3 bg-pink-50/50 rounded-xl border border-pink-100">
                                 <input
                                     type="checkbox"
-                                    id="isFreeCheckbox"
-                                    checked={editingCourse.isFree}
-                                    onChange={(e) => setEditingCourse({ ...editingCourse, isFree: e.target.checked, price: e.target.checked ? 0 : editingCourse.price })}
-                                    className="w-4 h-4 text-[#F06292]"
+                                    id="isFreeCourseCheckbox"
+                                    checked={courseFormData.isFree}
+                                    onChange={(e) => setCourseFormData({ ...courseFormData, isFree: e.target.checked, price: e.target.checked ? 0 : courseFormData.price })}
+                                    className="w-4 h-4 text-[#F06292] rounded cursor-pointer"
                                 />
-                                <label htmlFor="isFreeCheckbox">Khóa học miễn phí (Không cần thanh toán)</label>
+                                <label htmlFor="isFreeCourseCheckbox" className="cursor-pointer text-[#373A4D]">Khóa học miễn phí (Không cần thanh toán)</label>
                             </div>
-                            {!editingCourse.isFree && (
+
+                            {!courseFormData.isFree && (
                                 <div>
                                     <label className="block mb-1">Giá bán niêm yết (VNĐ):</label>
                                     <input
                                         type="number"
                                         min="0"
                                         step="1000"
-                                        value={editingCourse.price}
-                                        onChange={(e) => setEditingCourse({ ...editingCourse, price: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none"
+                                        value={courseFormData.price}
+                                        onChange={(e) => setCourseFormData({ ...courseFormData, price: Number(e.target.value) })}
+                                        className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                         required
                                     />
                                 </div>
                             )}
-                            <div className="pt-2 flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowEditCourseModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl">Hủy</button>
-                                <button type="submit" className="px-4 py-2 bg-[#F06292] text-white rounded-xl">Lưu thay đổi</button>
+
+                            <div className="pt-2 flex justify-end gap-2 border-t border-pink-50">
+                                <button type="button" onClick={() => setShowCourseModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl font-bold">Hủy</button>
+                                <button type="submit" className="px-5 py-2 bg-[#F06292] text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm"><Save size={14} /> Lưu</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            {showAddLessonModal && (
+            {/* ========================================================================= */}
+            {/* MODAL 2: TẠO / SỬA BÀI HỌC */}
+            {/* ========================================================================= */}
+            {showLessonModal && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
                     <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-xl space-y-4">
-                        <h3 className="text-base font-extrabold text-[#373A4D]">Thêm bài học mới</h3>
-                        <form onSubmit={handleAddLesson} className="space-y-3 text-xs font-bold text-gray-600">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-extrabold text-[#373A4D]">{isEditingLesson ? 'Chỉnh sửa bài học' : 'Thêm bài học mới'}</h3>
+                            <button onClick={() => setShowLessonModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                        </div>
+                        <form onSubmit={handleSaveLesson} className="space-y-3 text-xs font-bold text-gray-600">
                             <div>
-                                <label className="block mb-1">Số thứ tự:</label>
+                                <label className="block mb-1">Số thứ tự bài:</label>
                                 <input
                                     type="number"
                                     min="1"
-                                    value={newLessonOrder}
-                                    onChange={(e) => setNewLessonOrder(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl"
+                                    value={lessonFormData.orderIndex}
+                                    onChange={(e) => setLessonFormData({ ...lessonFormData, orderIndex: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                     required
                                 />
                             </div>
@@ -1153,35 +1059,43 @@ N + 이/가 | Trợ từ chủ ngữ | 비가 와요 | Trời mưa`}
                                 <label className="block mb-1">Tên bài học:</label>
                                 <input
                                     type="text"
-                                    placeholder="Ví dụ: Bài 4: Ngày & Giờ"
-                                    value={newLessonTitle}
-                                    onChange={(e) => setNewLessonTitle(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl"
+                                    placeholder="Ví dụ: Bài 1: Giới thiệu bản thân (소개)"
+                                    value={lessonFormData.title}
+                                    onChange={(e) => setLessonFormData({ ...lessonFormData, title: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                     required
                                 />
                             </div>
-                            <div className="pt-2 flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowAddLessonModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl">Hủy</button>
-                                <button type="submit" className="px-4 py-2 bg-[#F06292] text-white rounded-xl">Tạo bài học</button>
+                            <div className="pt-2 flex justify-end gap-2 border-t border-pink-50">
+                                <button type="button" onClick={() => setShowLessonModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl font-bold">Hủy</button>
+                                <button type="submit" className="px-4 py-2 bg-[#F06292] text-white rounded-xl font-bold">
+                                    {isEditingLesson ? 'Lưu thay đổi' : 'Tạo bài học'}
+                                </button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            {showAddVocabModal && (
+            {/* ========================================================================= */}
+            {/* MODAL 3: TẠO / SỬA TỪ VỰNG */}
+            {/* ========================================================================= */}
+            {showVocabModal && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
                     <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-xl space-y-4">
-                        <h3 className="text-base font-extrabold text-[#373A4D]">Thêm lẻ từ vựng</h3>
-                        <form onSubmit={handleAddVocabulary} className="space-y-3 text-xs font-bold text-gray-600">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-extrabold text-[#373A4D]">{isEditingVocab ? 'Chỉnh sửa từ vựng' : 'Thêm từ vựng mới'}</h3>
+                            <button onClick={() => setShowVocabModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                        </div>
+                        <form onSubmit={handleSaveVocab} className="space-y-3 text-xs font-bold text-gray-600">
                             <div>
                                 <label className="block mb-1">Từ tiếng Hàn:</label>
                                 <input
                                     type="text"
                                     placeholder="Ví dụ: 사과"
-                                    value={newWordKr}
-                                    onChange={(e) => setNewWordKr(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl"
+                                    value={vocabFormData.wordKr}
+                                    onChange={(e) => setVocabFormData({ ...vocabFormData, wordKr: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                     required
                                 />
                             </div>
@@ -1190,69 +1104,149 @@ N + 이/가 | Trợ từ chủ ngữ | 비가 와요 | Trời mưa`}
                                 <input
                                     type="text"
                                     placeholder="Ví dụ: Quả táo"
-                                    value={newMeaningVn}
-                                    onChange={(e) => setNewMeaningVn(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl"
+                                    value={vocabFormData.meaningVn}
+                                    onChange={(e) => setVocabFormData({ ...vocabFormData, meaningVn: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                     required
                                 />
                             </div>
-                            <div className="pt-2 flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowAddVocabModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl">Hủy</button>
-                                <button type="submit" className="px-4 py-2 bg-[#F06292] text-white rounded-xl">Thêm từ</button>
+                            <div className="pt-2 flex justify-end gap-2 border-t border-pink-50">
+                                <button type="button" onClick={() => setShowVocabModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl font-bold">Hủy</button>
+                                <button type="submit" className="px-4 py-2 bg-[#F06292] text-white rounded-xl font-bold">
+                                    {isEditingVocab ? 'Lưu thay đổi' : 'Thêm từ'}
+                                </button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            {showAddGrammarModal && (
+            {/* ========================================================================= */}
+            {/* MODAL 4: TẠO / SỬA NGỮ PHÁP */}
+            {/* ========================================================================= */}
+            {showGrammarModal && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-xl space-y-4">
-                        <h3 className="text-base font-extrabold text-[#373A4D]">Thêm lẻ ngữ pháp</h3>
-                        <form onSubmit={handleAddGrammar} className="space-y-3 text-xs font-bold text-gray-600">
+                    <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-extrabold text-[#373A4D]">{isEditingGrammar ? 'Chỉnh sửa ngữ pháp' : 'Thêm ngữ pháp mới'}</h3>
+                            <button onClick={() => setShowGrammarModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                        </div>
+                        <form onSubmit={handleSaveGrammar} className="space-y-3 text-xs font-bold text-gray-600">
                             <div>
-                                <label className="block mb-1">Cấu trúc:</label>
+                                <label className="block mb-1">Cấu trúc ngữ pháp:</label>
                                 <input
                                     type="text"
                                     placeholder="Ví dụ: V/A + -아요/어요"
-                                    value={newStructure}
-                                    onChange={(e) => setNewStructure(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl"
+                                    value={grammarFormData.structure}
+                                    onChange={(e) => setGrammarFormData({ ...grammarFormData, structure: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                     required
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Cách dùng:</label>
+                                <label className="block mb-1">Cách dùng & Quy tắc chia:</label>
                                 <textarea
                                     rows="2"
-                                    value={newUsageDesc}
-                                    onChange={(e) => setNewUsageDesc(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl"
+                                    value={grammarFormData.usageDesc}
+                                    onChange={(e) => setGrammarFormData({ ...grammarFormData, usageDesc: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Ví dụ tiếng Hàn:</label>
+                                <label className="block mb-1">Ví dụ câu tiếng Hàn:</label>
                                 <input
                                     type="text"
-                                    value={newExampleKr}
-                                    onChange={(e) => setNewExampleKr(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl"
+                                    value={grammarFormData.exampleKr}
+                                    onChange={(e) => setGrammarFormData({ ...grammarFormData, exampleKr: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                 />
                             </div>
                             <div>
                                 <label className="block mb-1">Dịch nghĩa ví dụ:</label>
                                 <input
                                     type="text"
-                                    value={newExampleVn}
-                                    onChange={(e) => setNewExampleVn(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl"
+                                    value={grammarFormData.exampleVn}
+                                    onChange={(e) => setGrammarFormData({ ...grammarFormData, exampleVn: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-[#FFF9FA] border border-pink-100 rounded-xl focus:outline-none focus:border-[#F06292]"
                                 />
                             </div>
-                            <div className="pt-2 flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowAddGrammarModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl">Hủy</button>
-                                <button type="submit" className="px-4 py-2 bg-[#F06292] text-white rounded-xl">Thêm ngữ pháp</button>
+                            <div className="pt-2 flex justify-end gap-2 border-t border-pink-50">
+                                <button type="button" onClick={() => setShowGrammarModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl font-bold">Hủy</button>
+                                <button type="submit" className="px-4 py-2 bg-[#F06292] text-white rounded-xl font-bold">
+                                    {isEditingGrammar ? 'Lưu thay đổi' : 'Thêm ngữ pháp'}
+                                </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL IMPORT TỪ VỰNG HÀNG LOẠT */}
+            {showBatchVocabModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white w-full max-w-3xl rounded-3xl p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-extrabold text-[#373A4D]">Import từ vựng (Excel / JSON)</h3>
+                            <button onClick={() => setShowBatchVocabModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-pink-50/50 rounded-2xl border border-pink-100">
+                            <input type="file" ref={vocabFileInputRef} onChange={handleVocabFileUpload} accept=".xlsx, .xls, .csv, .json" className="hidden" />
+                            <button onClick={() => vocabFileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F06292] text-white text-xs font-bold rounded-xl shadow-sm"><Upload size={14} /> Chọn tệp Excel / JSON</button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={downloadVocabExcelTemplate} className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-emerald-300 text-emerald-700 rounded-xl text-xs font-bold"><Download size={13} /> Mẫu Excel</button>
+                                <button onClick={downloadVocabJsonTemplate} className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-blue-300 text-blue-700 rounded-xl text-xs font-bold"><FileCode size={13} /> Mẫu JSON</button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
+                            <textarea rows="10" value={batchVocabText} onChange={(e) => handleParseVocabText(e.target.value)} placeholder="Hoặc dán: Từ - Nghĩa" className="w-full flex-1 p-3 bg-[#FFF9FA] border border-pink-100 rounded-2xl text-xs font-mono resize-none" />
+                            <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-3 overflow-y-auto space-y-2 text-xs">
+                                {parsedVocabList.map((item, idx) => (
+                                    <div key={idx} className="bg-white p-2.5 rounded-xl border border-gray-100 flex items-center justify-between">
+                                        <div><span className="font-extrabold text-[#373A4D]">{item.wordKr}</span> : <span className="text-gray-600">{item.meaningVn}</span></div>
+                                        <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">Sẵn sàng</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="pt-2 flex justify-end gap-2 border-t border-pink-50">
+                            <button type="button" onClick={() => setShowBatchVocabModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl text-xs font-bold">Hủy</button>
+                            <button type="button" disabled={parsedVocabList.length === 0} onClick={handleSaveBatchVocab} className="px-5 py-2 bg-[#F06292] text-white rounded-xl text-xs font-bold"><Save size={14} /> Lưu tất cả {parsedVocabList.length} từ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL IMPORT NGỮ PHÁP HÀNG LOẠT */}
+            {showBatchGrammarModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white w-full max-w-3xl rounded-3xl p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-extrabold text-[#373A4D]">Import ngữ pháp (Excel / JSON)</h3>
+                            <button onClick={() => setShowBatchGrammarModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-pink-50/50 rounded-2xl border border-pink-100">
+                            <input type="file" ref={grammarFileInputRef} onChange={handleGrammarFileUpload} accept=".xlsx, .xls, .csv, .json" className="hidden" />
+                            <button onClick={() => grammarFileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F06292] text-white text-xs font-bold rounded-xl shadow-sm"><Upload size={14} /> Chọn tệp Excel / JSON</button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={downloadGrammarExcelTemplate} className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-emerald-300 text-emerald-700 rounded-xl text-xs font-bold"><Download size={13} /> Mẫu Excel</button>
+                                <button onClick={downloadGrammarJsonTemplate} className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-blue-300 text-blue-700 rounded-xl text-xs font-bold"><FileCode size={13} /> Mẫu JSON</button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-hidden">
+                            <textarea rows="10" value={batchGrammarText} onChange={(e) => handleParseGrammarText(e.target.value)} placeholder="Dán mảng JSON hoặc: Cấu trúc | Cách dùng | Ví dụ | Dịch" className="w-full flex-1 p-3 bg-[#FFF9FA] border border-pink-100 rounded-2xl text-xs font-mono resize-none" />
+                            <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-3 overflow-y-auto space-y-2 text-xs">
+                                {parsedGrammarList.map((item, idx) => (
+                                    <div key={idx} className="bg-white p-2.5 rounded-xl border border-gray-100 space-y-1">
+                                        <span className="font-extrabold text-[#F06292] bg-pink-50 px-2 py-0.5 rounded-md text-xs">{item.structure}</span>
+                                        <p className="text-gray-600 text-[11px] line-clamp-2">{item.usageDesc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="pt-2 flex justify-end gap-2 border-t border-pink-50">
+                            <button type="button" onClick={() => setShowBatchGrammarModal(false)} className="px-4 py-2 bg-gray-100 rounded-xl text-xs font-bold">Hủy</button>
+                            <button type="button" disabled={parsedGrammarList.length === 0} onClick={handleSaveBatchGrammar} className="px-5 py-2 bg-[#F06292] text-white rounded-xl text-xs font-bold"><Save size={14} /> Lưu tất cả {parsedGrammarList.length} ngữ pháp</button>
+                        </div>
                     </div>
                 </div>
             )}

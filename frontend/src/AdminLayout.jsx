@@ -1,28 +1,30 @@
 import React, { useState } from 'react';
 import UserManagement from './UserManagement';
 import CourseManagement from './CourseManagement';
+import TopikManagement from './TopikManagement';
 import {
     BookOpen,
     LayoutDashboard,
     Users,
     GraduationCap,
-    FileSpreadsheet,
+    Award,
     LogOut,
     Search,
     Bell,
     ShieldCheck,
-    ChevronRight
+    ChevronRight,
+    ArrowLeft
 } from 'lucide-react';
 
-const AdminLayout = ({ user, onLogout }) => {
+const AdminLayout = ({ user, onLogout, onBackToUser }) => {
     // Quản lý tab đang được chọn: 'dashboard' | 'users' | 'courses' | 'exams'
-    const [activeTab, setActiveTab] = useState('dashboard');
+    const [activeTab, setActiveTab] = useState('exams'); // Mặc định mở ngay tab Đề thi để bạn kiểm tra
 
     const menuItems = [
         { id: 'dashboard', label: 'Bảng điều khiển', icon: LayoutDashboard, desc: 'Tổng quan hệ thống' },
         { id: 'users', label: 'Quản lý người dùng', icon: Users, desc: 'Tài khoản & Phân quyền' },
         { id: 'courses', label: 'Quản lý khóa học', icon: GraduationCap, desc: 'Sơ cấp 1 & Sơ cấp 2' },
-        { id: 'exams', label: 'Quản lý đề thi TOPIK', icon: FileSpreadsheet, desc: 'TOPIK I, II & Barem chấm' },
+        { id: 'exams', label: 'Quản lý đề thi TOPIK', icon: Award, desc: 'TOPIK I, II & Barem chấm' },
     ];
 
     return (
@@ -54,8 +56,8 @@ const AdminLayout = ({ user, onLogout }) => {
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id)}
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all text-left ${isActive
-                                        ? 'bg-gradient-to-r from-[#F48FB1] to-[#F06292] text-white shadow-[0_4px_12px_rgba(240,98,146,0.3)]'
-                                        : 'text-[#373A4D] hover:bg-pink-50 hover:text-[#F06292]'
+                                            ? 'bg-gradient-to-r from-[#F48FB1] to-[#F06292] text-white shadow-[0_4px_12px_rgba(240,98,146,0.3)]'
+                                            : 'text-[#373A4D] hover:bg-pink-50 hover:text-[#F06292]'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -85,6 +87,15 @@ const AdminLayout = ({ user, onLogout }) => {
                             <p className="text-[11px] text-gray-400 truncate">{user?.email}</p>
                         </div>
                     </div>
+
+                    {onBackToUser && (
+                        <button
+                            onClick={onBackToUser}
+                            className="w-full flex items-center justify-center gap-2 py-2 mb-2 text-xs font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-xl transition"
+                        >
+                            <ArrowLeft size={14} /> Về giao diện Học viên
+                        </button>
+                    )}
 
                     <button
                         onClick={onLogout}
@@ -127,7 +138,7 @@ const AdminLayout = ({ user, onLogout }) => {
                     {activeTab === 'dashboard' && <AdminDashboard />}
                     {activeTab === 'users' && <UserManagement />}
                     {activeTab === 'courses' && <CourseManagement />}
-                    {activeTab === 'exams' && <PlaceholderView title="Quản lý đề thi TOPIK" subtitle="Nhập đề thi Topik I, Topik II, upload file nghe & cài đặt tiêu chí chấm" />}
+                    {activeTab === 'exams' && <TopikManagement />}
                 </main>
             </div>
         </div>
@@ -137,10 +148,10 @@ const AdminLayout = ({ user, onLogout }) => {
 // Component con: Bảng điều khiển Tổng quan (Dashboard)
 const AdminDashboard = () => {
     const stats = [
-        { title: 'Tổng học viên', value: '128', change: '+12% tuần này', color: 'from-pink-500 to-rose-400' },
-        { title: 'Bài học sơ cấp', value: '30 bài', change: '15 bài / khóa', color: 'from-purple-500 to-indigo-400' },
-        { title: 'Đề thi TOPIK', value: '12 đề', change: 'Topik I & Topik II', color: 'from-blue-500 to-cyan-400' },
-        { title: 'Lượt luyện thi', value: '1,420', change: 'Điểm TB: 145/200', color: 'from-amber-500 to-orange-400' },
+        { title: 'Tổng học viên', value: '128', change: '+12% tuần này' },
+        { title: 'Bài học sơ cấp', value: '30 bài', change: '15 bài / khóa' },
+        { title: 'Đề thi TOPIK', value: '12 đề', change: 'Topik I & Topik II' },
+        { title: 'Lượt luyện thi', value: '1,420', change: 'Điểm TB: 145/200' },
     ];
 
     return (
@@ -162,43 +173,8 @@ const AdminDashboard = () => {
                     </div>
                 ))}
             </div>
-
-            {/* Khung hướng dẫn các bước tiếp theo */}
-            <div className="bg-white rounded-3xl p-6 border border-pink-50">
-                <h3 className="text-base font-bold text-[#373A4D] mb-4">Các tác vụ ưu tiên tiếp theo</h3>
-                <div className="space-y-3">
-                    <div className="p-4 rounded-2xl bg-[#FFF9FA] border border-pink-100 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-bold text-[#373A4D]">1. Quản lý người dùng</p>
-                            <p className="text-xs text-gray-500">Xem bảng dữ liệu tài khoản từ MySQL, tính năng tìm kiếm, khóa/kích hoạt tài khoản.</p>
-                        </div>
-                        <span className="text-xs font-bold text-[#F06292]">Sắp triển khai &rarr;</span>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-bold text-gray-600">2. Quản lý khóa học (Từ vựng & Ngữ pháp)</p>
-                            <p className="text-xs text-gray-400">CRUD từ vựng và cấu trúc ngữ pháp phục vụ tính năng Flashcard, Luyện gõ, Luyện nghe.</p>
-                        </div>
-                        <span className="text-xs text-gray-400">Chờ</span>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };
-
-// Component hiển thị Placeholder cho các tab đang chuẩn bị làm
-const PlaceholderView = ({ title, subtitle }) => (
-    <div className="bg-white rounded-3xl p-10 border border-pink-50 text-center min-h-[400px] flex flex-col items-center justify-center">
-        <div className="w-16 h-16 rounded-full bg-pink-50 flex items-center justify-center text-[#F06292] mb-4">
-            <GraduationCap size={32} />
-        </div>
-        <h3 className="text-xl font-extrabold text-[#373A4D] mb-2">{title}</h3>
-        <p className="text-xs text-gray-500 max-w-md mb-6">{subtitle}</p>
-        <div className="text-xs font-bold text-gray-400 bg-gray-100 px-4 py-2 rounded-xl">
-            Bộ khung đã sẵn sàng. Bạn có thể bắt đầu code chi tiết chức năng này.
-        </div>
-    </div>
-);
 
 export default AdminLayout;
