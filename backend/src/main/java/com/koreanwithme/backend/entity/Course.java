@@ -29,6 +29,8 @@ public class Course {
     @Builder.Default
     @Column(name = "is_free")
     private Boolean isFree = false;
+    @Column(name = "thumbnail_url", columnDefinition = "TEXT")
+    private String thumbnailUrl;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default

@@ -18,14 +18,23 @@ public class AdminCourseController {
     @Autowired
     private AdminCourseService adminCourseService;
 
-    // ================= 1. KHÓA HỌC =================
+    // --- 1. KHÓA HỌC ---
     @GetMapping("/courses")
     public ResponseEntity<List<Course>> getAllCourses() {
         return ResponseEntity.ok(adminCourseService.getAllCourses());
     }
 
+    @PostMapping("/courses")
+    public ResponseEntity<?> createCourse(@RequestBody CourseRequest request) {
+        try {
+            return ResponseEntity.ok(adminCourseService.createCourse(request));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("message", e.getMessage()));
+        }
+    }
+
     @PutMapping("/courses/{id}")
-    public ResponseEntity<?> updateCourse(@PathVariable Integer id, @RequestBody CourseUpdateRequest request) {
+    public ResponseEntity<?> updateCourse(@PathVariable Integer id, @RequestBody CourseRequest request) {
         try {
             return ResponseEntity.ok(adminCourseService.updateCourse(id, request));
         } catch (Exception e) {
@@ -33,7 +42,17 @@ public class AdminCourseController {
         }
     }
 
-    // ================= 2. BÀI HỌC =================
+    @DeleteMapping("/courses/{id}")
+    public ResponseEntity<?> deleteCourse(@PathVariable Integer id) {
+        try {
+            adminCourseService.deleteCourse(id);
+            return ResponseEntity.ok(Collections.singletonMap("message", "Đã xóa khóa học!"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("message", e.getMessage()));
+        }
+    }
+
+    // --- 2. BÀI HỌC ---
     @GetMapping("/lessons")
     public ResponseEntity<List<LessonResponse>> getLessons(@RequestParam Integer courseId) {
         return ResponseEntity.ok(adminCourseService.getLessonsByCourse(courseId));
@@ -48,13 +67,26 @@ public class AdminCourseController {
         }
     }
 
-    @DeleteMapping("/lessons/{id}")
-    public ResponseEntity<?> deleteLesson(@PathVariable Integer id) {
-        adminCourseService.deleteLesson(id);
-        return ResponseEntity.ok(Collections.singletonMap("message", "Đã xóa bài học!"));
+    @PutMapping("/lessons/{id}")
+    public ResponseEntity<?> updateLesson(@PathVariable Integer id, @RequestBody LessonRequest request) {
+        try {
+            return ResponseEntity.ok(adminCourseService.updateLesson(id, request));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("message", e.getMessage()));
+        }
     }
 
-    // ================= 3. TỪ VỰNG =================
+    @DeleteMapping("/lessons/{id}")
+    public ResponseEntity<?> deleteLesson(@PathVariable Integer id) {
+        try {
+            adminCourseService.deleteLesson(id);
+            return ResponseEntity.ok(Collections.singletonMap("message", "Đã xóa bài học!"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("message", e.getMessage()));
+        }
+    }
+
+    // --- 3. TỪ VỰNG ---
     @GetMapping("/vocabularies")
     public ResponseEntity<List<VocabularyResponse>> getVocabularies(@RequestParam Integer lessonId) {
         return ResponseEntity.ok(adminCourseService.getVocabulariesByLesson(lessonId));
@@ -69,7 +101,6 @@ public class AdminCourseController {
         }
     }
 
-    // Endpoint nhận danh sách hàng loạt từ file Excel / JSON
     @PostMapping("/vocabularies/batch")
     public ResponseEntity<?> createVocabulariesBatch(@RequestBody List<VocabularyRequest> requests) {
         try {
@@ -85,7 +116,7 @@ public class AdminCourseController {
         return ResponseEntity.ok(Collections.singletonMap("message", "Đã xóa từ vựng!"));
     }
 
-    // ================= 4. NGỮ PHÁP =================
+    // --- 4. NGỮ PHÁP ---
     @GetMapping("/grammars")
     public ResponseEntity<List<GrammarResponse>> getGrammars(@RequestParam Integer lessonId) {
         return ResponseEntity.ok(adminCourseService.getGrammarsByLesson(lessonId));
@@ -100,7 +131,6 @@ public class AdminCourseController {
         }
     }
 
-    // Endpoint nhận ngữ pháp hàng loạt từ file Excel / JSON
     @PostMapping("/grammars/batch")
     public ResponseEntity<?> createGrammarsBatch(@RequestBody List<GrammarRequest> requests) {
         try {
@@ -114,5 +144,22 @@ public class AdminCourseController {
     public ResponseEntity<?> deleteGrammar(@PathVariable Integer id) {
         adminCourseService.deleteGrammar(id);
         return ResponseEntity.ok(Collections.singletonMap("message", "Đã xóa ngữ pháp!"));
+    }
+    @PutMapping("/vocabularies/{id}")
+    public ResponseEntity<?> updateVocabulary(@PathVariable Integer id, @RequestBody VocabularyRequest request) {
+        try {
+            return ResponseEntity.ok(adminCourseService.updateVocabulary(id, request));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("message", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/grammars/{id}")
+    public ResponseEntity<?> updateGrammar(@PathVariable Integer id, @RequestBody GrammarRequest request) {
+        try {
+            return ResponseEntity.ok(adminCourseService.updateGrammar(id, request));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("message", e.getMessage()));
+        }
     }
 }

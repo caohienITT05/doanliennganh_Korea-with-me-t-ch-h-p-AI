@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -41,10 +42,19 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                // Cấu hình cho phép tải file MP3 chéo cổng giữa 5173 và 8088 không bị trình duyệt chặn
+                .headers(headers -> headers
+                        .crossOriginResourcePolicy(corp -> corp.policy(
+                                CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy.CROSS_ORIGIN
+                        ))
+                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/public/**", "/error").permitAll()
+                        // 1. Cho phép truy cập công khai vào thư mục uploads file nghe và API public
+                        .requestMatchers("/uploads/**", "/api/auth/**", "/api/public/**", "/error").permitAll()
+                        // 2. Phân quyền Admin
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // 3. Phân quyền User & Admin
                         .requestMatchers("/api/exams/**", "/api/chat/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 );

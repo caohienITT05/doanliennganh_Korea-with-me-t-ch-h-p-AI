@@ -10,5 +10,6 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Integer> {
     // Tự động tạo hàm tìm user bằng email (Spring Boot tự hiểu logic này)
     Optional<User> findByEmail(String email);
-    Optional<User> findByVerificationToken(String token); // hàm tìm User theo mã xác nhận đăng ký
+    Optional<User> findByVerificationToken(String token);
+
 }
