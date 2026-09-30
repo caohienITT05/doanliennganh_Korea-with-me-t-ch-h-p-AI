@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from './axios';
-import { 
-  Award, Clock, Play, Pause, CheckCircle2, 
-  Send, RotateCcw, ArrowRight, ArrowLeft, PenTool, Sparkles, 
+import {
+  Award, Clock, Play, Pause, CheckCircle2,
+  Send, RotateCcw, ArrowRight, ArrowLeft, PenTool, Sparkles,
   BookOpen, History, Calendar, CheckCircle
 } from 'lucide-react';
 
@@ -139,8 +139,8 @@ const TopikExamRoom = () => {
 
   const togglePlayAudio = (url) => {
     if (!url) return;
-    const backendBase = axios.defaults.baseURL 
-      ? axios.defaults.baseURL.replace(/\/api\/?$/, '') 
+    const backendBase = axios.defaults.baseURL
+      ? axios.defaults.baseURL.replace(/\/api\/?$/, '')
       : 'http://localhost:8088';
 
     const fullUrl = url.startsWith('http') ? url : `${backendBase}${url}`;
@@ -245,17 +245,15 @@ const TopikExamRoom = () => {
           <div className="flex bg-white p-1 rounded-2xl border border-pink-100 shadow-2xs self-start">
             <button
               onClick={() => setActiveTab('EXAMS')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition ${
-                activeTab === 'EXAMS' ? 'bg-[#F06292] text-white shadow-xs' : 'text-gray-500 hover:text-[#F06292]'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition ${activeTab === 'EXAMS' ? 'bg-[#F06292] text-white shadow-xs' : 'text-gray-500 hover:text-[#F06292]'
+                }`}
             >
               <Award size={14} /> Danh sách đề thi
             </button>
             <button
               onClick={() => setActiveTab('HISTORY')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition ${
-                activeTab === 'HISTORY' ? 'bg-[#F06292] text-white shadow-xs' : 'text-gray-500 hover:text-[#F06292]'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition ${activeTab === 'HISTORY' ? 'bg-[#F06292] text-white shadow-xs' : 'text-gray-500 hover:text-[#F06292]'
+                }`}
             >
               <History size={14} /> Lịch sử làm bài
             </button>
@@ -274,15 +272,14 @@ const TopikExamRoom = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {exams.map((exam) => (
-                  <div 
-                    key={exam.id} 
+                  <div
+                    key={exam.id}
                     className="bg-white p-6 rounded-3xl border border-pink-100 shadow-xs hover:border-[#F06292] hover:shadow-md transition space-y-4 flex flex-col justify-between"
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase ${
-                          exam.level === 'TOPIK_I' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-purple-50 text-purple-600 border border-purple-200'
-                        }`}>
+                        <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase ${exam.level === 'TOPIK_I' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-purple-50 text-purple-600 border border-purple-200'
+                          }`}>
                           {exam.level === 'TOPIK_I' ? 'TOPIK I (Cấp 1 - 2)' : 'TOPIK II (Cấp 3 - 6)'}
                         </span>
                         <span className="text-[11px] text-gray-400 font-bold flex items-center gap-1">
@@ -367,11 +364,10 @@ const TopikExamRoom = () => {
                           {item.totalScore}đ
                         </td>
                         <td className="py-4 px-6 text-center">
-                          <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase ${
-                            item.passedLevel.includes('Level') 
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                              : 'bg-rose-50 text-rose-600 border border-rose-200'
-                          }`}>
+                          <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase ${item.passedLevel.includes('Level')
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-rose-50 text-rose-600 border border-rose-200'
+                            }`}>
                             {item.passedLevel}
                           </span>
                         </td>
@@ -420,11 +416,10 @@ const TopikExamRoom = () => {
           </div>
 
           <div className="flex items-center gap-6">
-            <div className={`flex items-center gap-2 px-4 py-1.5 rounded-2xl border font-mono font-black text-sm shadow-2xs ${
-              timeLeft < 300 
-                ? 'bg-rose-50 border-rose-300 text-rose-600 animate-pulse' 
-                : 'bg-[#FFF5F7] border-pink-200 text-[#F06292]'
-            }`}>
+            <div className={`flex items-center gap-2 px-4 py-1.5 rounded-2xl border font-mono font-black text-sm shadow-2xs ${timeLeft < 300
+              ? 'bg-rose-50 border-rose-300 text-rose-600 animate-pulse'
+              : 'bg-[#FFF5F7] border-pink-200 text-[#F06292]'
+              }`}>
               <Clock size={16} />
               <span>{formatTime(timeLeft)}</span>
             </div>
@@ -449,9 +444,8 @@ const TopikExamRoom = () => {
                     <span className="w-8 h-8 rounded-xl bg-[#FFF0F4] text-[#F06292] font-black text-sm flex items-center justify-center">
                       {currentQ.questionNum}
                     </span>
-                    <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase ${
-                      currentQ.section === 'LISTENING' ? 'bg-blue-50 text-blue-600' : currentQ.section === 'READING' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-100 text-purple-700'
-                    }`}>
+                    <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase ${currentQ.section === 'LISTENING' ? 'bg-blue-50 text-blue-600' : currentQ.section === 'READING' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-100 text-purple-700'
+                      }`}>
                       {currentQ.section}
                     </span>
                     <span className="text-xs font-bold text-gray-400">
@@ -493,15 +487,13 @@ const TopikExamRoom = () => {
                         <button
                           key={opt.key}
                           onClick={() => handleSelectAnswer(currentQ.id, opt.key)}
-                          className={`w-full text-left p-3.5 rounded-2xl border text-xs font-bold transition flex items-center gap-3 ${
-                            isSelected
-                              ? 'bg-pink-50 border-[#F06292] text-[#F06292] shadow-2xs'
-                              : 'bg-white border-gray-100 hover:border-pink-200 text-[#373A4D]'
-                          }`}
+                          className={`w-full text-left p-3.5 rounded-2xl border text-xs font-bold transition flex items-center gap-3 ${isSelected
+                            ? 'bg-pink-50 border-[#F06292] text-[#F06292] shadow-2xs'
+                            : 'bg-white border-gray-100 hover:border-pink-200 text-[#373A4D]'
+                            }`}
                         >
-                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
-                            isSelected ? 'bg-[#F06292] text-white' : 'bg-gray-100 text-gray-500'
-                          }`}>
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${isSelected ? 'bg-[#F06292] text-white' : 'bg-gray-100 text-gray-500'
+                            }`}>
                             {opt.key}
                           </span>
                           <span className="flex-1">{opt.text || '—'}</span>
@@ -574,9 +566,8 @@ const TopikExamRoom = () => {
                 <button
                   key={tab}
                   onClick={() => setCurrentSectionFilter(tab)}
-                  className={`flex-1 py-1 rounded-lg transition ${
-                    currentSectionFilter === tab ? 'bg-white text-[#F06292] shadow-2xs' : 'text-gray-400'
-                  }`}
+                  className={`flex-1 py-1 rounded-lg transition ${currentSectionFilter === tab ? 'bg-white text-[#F06292] shadow-2xs' : 'text-gray-400'
+                    }`}
                 >
                   {tab === 'ALL' ? 'Tất cả' : tab === 'LISTENING' ? 'Nghe' : tab === 'WRITING' ? 'Viết' : 'Đọc'}
                 </button>
@@ -593,13 +584,12 @@ const TopikExamRoom = () => {
                   <button
                     key={q.id}
                     onClick={() => setActiveQuestionIndex(originalIndex)}
-                    className={`h-9 rounded-xl text-xs font-black transition relative flex items-center justify-center ${
-                      isCurrent
-                        ? 'border-2 border-[#F06292] text-[#F06292] bg-pink-50'
-                        : isAnswered
+                    className={`h-9 rounded-xl text-xs font-black transition relative flex items-center justify-center ${isCurrent
+                      ? 'border-2 border-[#F06292] text-[#F06292] bg-pink-50'
+                      : isAnswered
                         ? 'bg-[#F06292] text-white shadow-2xs'
                         : 'bg-gray-50 text-gray-400 hover:bg-pink-50 hover:text-[#F06292]'
-                    }`}
+                      }`}
                   >
                     <span>{q.questionNum}</span>
                     {isAnswered && (
@@ -746,23 +736,20 @@ const TopikExamRoom = () => {
             return (
               <div
                 key={q.questionId}
-                className={`p-5 rounded-3xl border shadow-2xs bg-white space-y-3 transition ${
-                  q.isCorrect ? 'border-emerald-200' : 'border-rose-200 bg-rose-50/10'
-                }`}
+                className={`p-5 rounded-3xl border shadow-2xs bg-white space-y-3 transition ${q.isCorrect ? 'border-emerald-200' : 'border-rose-200 bg-rose-50/10'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center ${
-                      q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                    }`}>
+                    <span className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center ${q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                      }`}>
                       {q.questionNum}
                     </span>
                     <span className="text-xs font-bold text-gray-500 uppercase">
                       {q.section}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${
-                      q.isCorrect ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${q.isCorrect ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                      }`}>
                       {q.isCorrect ? `Đúng (+${q.score}đ)` : 'Sai (0đ)'}
                     </span>
                   </div>
