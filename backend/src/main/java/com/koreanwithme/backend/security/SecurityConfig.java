@@ -52,10 +52,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 1. Cho phép truy cập công khai vào thư mục uploads file nghe và API public
                         .requestMatchers("/uploads/**", "/api/auth/**", "/api/public/**", "/error").permitAll()
+
                         // 2. Phân quyền Admin
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        // 3. Phân quyền User & Admin
-                        .requestMatchers("/api/exams/**", "/api/chat/**").hasAnyRole("USER", "ADMIN")
+
+                        // 3. Phân quyền User & Admin (Luyện thi, Chatbot AI và Học bài/Chấm dịch AI)
+                        .requestMatchers("/api/exams/**", "/api/chat/**", "/api/study/**").hasAnyRole("USER", "ADMIN")
+
                         .anyRequest().authenticated()
                 );
 

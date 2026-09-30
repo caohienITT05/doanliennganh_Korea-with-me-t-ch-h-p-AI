@@ -152,8 +152,8 @@ public class AdminCourseService {
 
         Vocabulary vocab = Vocabulary.builder()
                 .lesson(lesson)
-                .wordKr(req.getWordKr().trim())
-                .meaningVn(req.getMeaningVn().trim())
+                .wordKr(req.getWordKr() != null ? req.getWordKr().trim() : "")
+                .meaningVn(req.getMeaningVn() != null ? req.getMeaningVn().trim() : "")
                 .audioUrl(req.getAudioUrl())
                 .build();
 
@@ -177,8 +177,8 @@ public class AdminCourseService {
 
         List<Vocabulary> list = requests.stream().map(req -> Vocabulary.builder()
                 .lesson(lesson)
-                .wordKr(req.getWordKr().trim())
-                .meaningVn(req.getMeaningVn().trim())
+                .wordKr(req.getWordKr() != null ? req.getWordKr().trim() : "")
+                .meaningVn(req.getMeaningVn() != null ? req.getMeaningVn().trim() : "")
                 .audioUrl(req.getAudioUrl())
                 .build()
         ).collect(Collectors.toList());
@@ -199,18 +199,11 @@ public class AdminCourseService {
         vocabularyRepository.deleteById(id);
     }
 
-    // ================= 4. NGỮ PHÁP =================
+    // ================= 4. NGỮ PHÁP (ĐÃ CẬP NHẬT ĐẦY ĐỦ CÁC TRƯỜNG MỚI) =================
     public List<GrammarResponse> getGrammarsByLesson(Integer lessonId) {
         return grammarRepository.findByLessonIdOrderByIdAsc(lessonId)
                 .stream()
-                .map(g -> GrammarResponse.builder()
-                        .id(g.getId())
-                        .lessonId(g.getLesson().getId())
-                        .structure(g.getStructure())
-                        .usageDesc(g.getUsageDesc())
-                        .exampleKr(g.getExampleKr())
-                        .exampleVn(g.getExampleVn())
-                        .build())
+                .map(this::mapToGrammarResponse)
                 .collect(Collectors.toList());
     }
 
@@ -219,24 +212,27 @@ public class AdminCourseService {
         Lesson lesson = lessonRepository.findById(req.getLessonId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài học!"));
 
+        // Tự động gán tên: Nếu chưa có name thì lấy structure, nếu vẫn rỗng thì đặt "Ngữ pháp mới"
+        String finalName = (req.getName() != null && !req.getName().trim().isEmpty())
+                ? req.getName().trim()
+                : (req.getStructure() != null && !req.getStructure().trim().isEmpty() ? req.getStructure().trim() : "Ngữ pháp mới");
+
         Grammar grammar = Grammar.builder()
                 .lesson(lesson)
-                .structure(req.getStructure().trim())
+                .name(finalName)
+                .structure(req.getStructure() != null ? req.getStructure().trim() : finalName)
                 .usageDesc(req.getUsageDesc())
                 .exampleKr(req.getExampleKr())
                 .exampleVn(req.getExampleVn())
+                .definition(req.getDefinition())
+                .usageScope(req.getUsageScope())
+                .notes(req.getNotes())
+                .examplesJson(req.getExamplesJson())
+                .exercisesJson(req.getExercisesJson())
                 .build();
 
         grammarRepository.save(grammar);
-
-        return GrammarResponse.builder()
-                .id(grammar.getId())
-                .lessonId(lesson.getId())
-                .structure(grammar.getStructure())
-                .usageDesc(grammar.getUsageDesc())
-                .exampleKr(grammar.getExampleKr())
-                .exampleVn(grammar.getExampleVn())
-                .build();
+        return mapToGrammarResponse(grammar);
     }
 
     @Transactional
@@ -246,31 +242,35 @@ public class AdminCourseService {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài học!"));
 
-        List<Grammar> list = requests.stream().map(req -> Grammar.builder()
-                .lesson(lesson)
-                .structure(req.getStructure().trim())
-                .usageDesc(req.getUsageDesc() != null ? req.getUsageDesc().trim() : "")
-                .exampleKr(req.getExampleKr() != null ? req.getExampleKr().trim() : "")
-                .exampleVn(req.getExampleVn() != null ? req.getExampleVn().trim() : "")
-                .build()
-        ).collect(Collectors.toList());
+        List<Grammar> list = requests.stream().map(req -> {
+            String finalName = (req.getName() != null && !req.getName().trim().isEmpty())
+                    ? req.getName().trim()
+                    : (req.getStructure() != null && !req.getStructure().trim().isEmpty() ? req.getStructure().trim() : "Ngữ pháp mới");
+
+            return Grammar.builder()
+                    .lesson(lesson)
+                    .name(finalName)
+                    .structure(req.getStructure() != null ? req.getStructure().trim() : finalName)
+                    .usageDesc(req.getUsageDesc() != null ? req.getUsageDesc().trim() : "")
+                    .exampleKr(req.getExampleKr() != null ? req.getExampleKr().trim() : "")
+                    .exampleVn(req.getExampleVn() != null ? req.getExampleVn().trim() : "")
+                    .definition(req.getDefinition())
+                    .usageScope(req.getUsageScope())
+                    .notes(req.getNotes())
+                    .examplesJson(req.getExamplesJson())
+                    .exercisesJson(req.getExercisesJson())
+                    .build();
+        }).collect(Collectors.toList());
 
         List<Grammar> saved = grammarRepository.saveAll(list);
-        return saved.stream().map(g -> GrammarResponse.builder()
-                .id(g.getId())
-                .lessonId(lesson.getId())
-                .structure(g.getStructure())
-                .usageDesc(g.getUsageDesc())
-                .exampleKr(g.getExampleKr())
-                .exampleVn(g.getExampleVn())
-                .build()
-        ).collect(Collectors.toList());
+        return saved.stream().map(this::mapToGrammarResponse).collect(Collectors.toList());
     }
 
     @Transactional
     public void deleteGrammar(Integer id) {
         grammarRepository.deleteById(id);
     }
+
     // --- CẬP NHẬT TỪ VỰNG ---
     @Transactional
     public VocabularyResponse updateVocabulary(Integer id, VocabularyRequest req) {
@@ -292,26 +292,46 @@ public class AdminCourseService {
                 .build();
     }
 
-    // --- CẬP NHẬT NGỮ PHÁP ---
+    // --- CẬP NHẬT NGỮ PHÁP (ĐÃ CẬP NHẬT CẢ CÁC TRƯỜNG MỚI) ---
     @Transactional
     public GrammarResponse updateGrammar(Integer id, GrammarRequest req) {
         Grammar grammar = grammarRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy ngữ pháp có ID: " + id));
 
+        if (req.getName() != null && !req.getName().trim().isEmpty()) {
+            grammar.setName(req.getName().trim());
+        }
         if (req.getStructure() != null) grammar.setStructure(req.getStructure().trim());
         if (req.getUsageDesc() != null) grammar.setUsageDesc(req.getUsageDesc().trim());
         if (req.getExampleKr() != null) grammar.setExampleKr(req.getExampleKr().trim());
         if (req.getExampleVn() != null) grammar.setExampleVn(req.getExampleVn().trim());
 
-        grammarRepository.save(grammar);
+        // Cập nhật các trường bảng 4 ô & luyện dịch
+        if (req.getDefinition() != null) grammar.setDefinition(req.getDefinition());
+        if (req.getUsageScope() != null) grammar.setUsageScope(req.getUsageScope());
+        if (req.getNotes() != null) grammar.setNotes(req.getNotes());
+        if (req.getExamplesJson() != null) grammar.setExamplesJson(req.getExamplesJson());
+        if (req.getExercisesJson() != null) grammar.setExercisesJson(req.getExercisesJson());
 
+        grammarRepository.save(grammar);
+        return mapToGrammarResponse(grammar);
+    }
+
+    // Helper map dữ liệu sang DTO đầy đủ trường
+    private GrammarResponse mapToGrammarResponse(Grammar g) {
         return GrammarResponse.builder()
-                .id(grammar.getId())
-                .lessonId(grammar.getLesson().getId())
-                .structure(grammar.getStructure())
-                .usageDesc(grammar.getUsageDesc())
-                .exampleKr(grammar.getExampleKr())
-                .exampleVn(grammar.getExampleVn())
+                .id(g.getId())
+                .lessonId(g.getLesson() != null ? g.getLesson().getId() : null)
+                .name(g.getName())
+                .structure(g.getStructure())
+                .usageDesc(g.getUsageDesc())
+                .exampleKr(g.getExampleKr())
+                .exampleVn(g.getExampleVn())
+                .definition(g.getDefinition())
+                .usageScope(g.getUsageScope())
+                .notes(g.getNotes())
+                .examplesJson(g.getExamplesJson())
+                .exercisesJson(g.getExercisesJson())
                 .build();
     }
 }

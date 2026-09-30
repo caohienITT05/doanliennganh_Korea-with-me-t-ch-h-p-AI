@@ -57,25 +57,44 @@ public class CourseDtos {
         private String audioUrl;
     }
 
-    @Data
-    public static class GrammarRequest {
-        private Integer lessonId;
-        private String structure;
-        private String usageDesc;
-        private String exampleKr;
-        private String exampleVn;
-    }
-
-    @Data
-    @AllArgsConstructor
+    @Getter
+    @Setter
     @NoArgsConstructor
+    @AllArgsConstructor
     @Builder
     public static class GrammarResponse {
         private Integer id;
         private Integer lessonId;
+        private String name;
         private String structure;
         private String usageDesc;
         private String exampleKr;
         private String exampleVn;
+        // Bổ sung các trường mới cho 4 ô & luyện dịch:
+        private String definition;
+        private String usageScope;
+        private String notes;
+        private String examplesJson;
+        private String exercisesJson;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class GrammarRequest {
+        private Integer lessonId;
+        private String name;
+        private String structure;
+        private String usageDesc;
+        private String exampleKr;
+        private String exampleVn;
+        // Bổ sung các trường mới:
+        private String definition;
+        private String usageScope;
+        private String notes;
+        private String examplesJson;
+        private String exercisesJson;
     }
 }
